@@ -168,9 +168,9 @@ movies<-movies %>% mutate(summer_season = if_else((movies$thtr_rel_month>4)&(mov
 
 plot_new_variables_relationship <- function(movies,new_var){
   
-  print(new_var)
-   # ret1<-ggplot(data=movies,aes(y=audience_score,x=new_var)) + geom_boxplot()
-
+ 
+   p0<-ggplot(data=movies,aes(y=audience_score,x=get(new_var),col=get(new_var))) + geom_boxplot()
+  print(p0)
   p<-ggplot(data=movies,aes(x=thtr_rel_year,y=audience_score,col=get(new_var))) 
   p<-p+ geom_point()
   print(p)
