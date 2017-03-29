@@ -1,0 +1,36 @@
+---
+title: "Two Paired Means CLE"
+output: github_document
+---
+
+
+
+```{r}
+zinc =  read.table("https://onlinecourses.science.psu.edu/stat500/sites/onlinecourses.science.psu.edu.stat500/files/data/zinc_conc.txt", 
+                   header=T, fileEncoding="UTF-16LE")
+zinc$difference = zinc$bottom - zinc$surface
+summary(zinc)
+```
+Plot hist of diff between surface and bottom
+
+```{r}
+zinc$difference <- zinc$bottom-zinc$surface
+myblue = rgb(86,155,189, name="myblue", max=256)
+mydarkgrey = rgb(.5,.5,.5, name="mydarkgrey", max=1)
+par(mar=c(5, 9, 2, 2), col.lab=mydarkgrey, col.axis=mydarkgrey, col=mydarkgrey)
+
+# histogram
+hist(zinc$difference, col=myblue,
+     xlab="difference", lwd=3, ylab="density",
+     main="", prob=T, axes=F)
+axis(1,col=mydarkgrey)
+axis(2,col=mydarkgrey)
+
+# Normal quantile plot
+qqnorm(zinc$difference, col=myblue, pch=16, main="",
+       xlab="theoretical quantiles",
+       ylab="sample quantiles")
+
+qqline(zinc$difference)
+```
+

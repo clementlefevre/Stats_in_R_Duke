@@ -1,0 +1,186 @@
+---
+title: "decision making under uncertainty"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+myblue = rgb(86,155,189, name="myblue", max=256)
+mydarkgrey = rgb(.5,.5,.5, name="mydarkgrey", max=1)
+```
+
+Load the data and preprocess
+```{r data}
+library(MASS)
+data(UScrime)
+
+#Log transform all continuous variables except `So` which is in column 2. 
+# We're overwriting the dataframe in this case.
+
+UScrime[,-2] = log(UScrime[,-2])
+```
+
+
+### Run BAS ###
+
+I am going to run `BAS` using the sampling without replacement option to enumerate all $2^15$ models. 
+```{r BAS}
+library(BAS)
+crime.ZS =  bas.lm(y ~ ., 
+                   data=UScrime,
+                   prior="ZS-null",
+                   modelprior=uniform()) 
+```
+
+
+**Model Choice**
+
+`BAS` has methods defined to return fitted values, `fitted`, using the observed design matrix and predictions at either the observed data or potentially new values, `predict`, as with `lm`.  
+
+
+```{r choice of estimator}
+muhat.BMA = fitted(crime.ZS, estimator="BMA")
+BMA  = predict(crime.ZS, estimator="BMA")
+
+# predict has additional slots for fitted values under BMA, predictions under each model
+names(BMA)
+```
+
+Plotting the two sets of fitted values,
+```{r}
+par(mar=c(9, 9, 3, 3))
+plot(muhat.BMA, BMA$fit, 
+     pch=16, col=myblue,
+     xlab=expression(hat(mu[i])), ylab=expression(hat(Y[i])))
+abline(0,1)
+```
+we see that they are in perfect agreement.  That is always the case as the posterior mean for the regression mean function at a point $x$ is the expected posterior  predictive value for $Y$ at $x$.   This is true not only for estimators such as BMA, but the expected values under model selection.   
+
+### Inference with model selection ###
+
+In addition to using BMA, we can use the posterior means under model selection.  This corresponds to a decision rule that combines estimation and selection.  `BAS` currently implements the following options
+
+
+**highest probability model:**
+
+```{r}
+HPM = predict(crime.ZS, estimator="HPM")
+
+# show the indices of variables in the best model where 0 is the intercept
+HPM$bestmodel
+```
+
+A little more interpretable version with names:
+```{r}
+(crime.ZS$namesx[HPM$bestmodel +1])[-1]
+```
+
+This model is stored in the output in position `r HPM$best` and can be extracted as
+```{r where}
+HPM$best
+```
+
+If we wanted to find the coefficients for this model for example, we could use the following:
+```{r coef HPM}
+
+crime.coef.ZS = coef(crime.ZS)
+crime.coef.ZS$conditionalmeans[HPM$best,]
+crime.coef.ZS$conditionalsd[HPM$best,]
+```
+to extract the posterior means and posterior standard deviations of the coefficients of the highest probability model.
+
+
+**median probability model:**
+```{r}
+MPM = predict(crime.ZS, estimator="MPM")
+attr(MPM$fit, 'model')
+(crime.ZS$namesx[attr(MPM$fit, 'model') +1])[-1]
+```
+
+Note that we can also extract the best model from the attribute in the fitted values as well.   
+
+For obtaining fitted or predicted values,  the media probability model may not be part of the sample (in the general case without enumeration) so the fitted and predict code in BAS actually just refits this model initializing BAS at this model.  Here is actually what is under the hood in case you wanted to find coefficients for the MPM.
+
+
+```{r MPM model}
+crime.MPM = bas.lm(y ~ ., 
+                   data=UScrime,
+                   prior="ZS-null",
+                   modelprior=uniform(),
+                   bestmodel=crime.ZS$probne0 > .5, n.models=1) 
+```
+
+The logical condition `crime.ZS$probne0` provides a  vector of length `r crime.ZS$n.vars` of the inclusion indicators of the median probabilty model, e.g. where the probabilty that the coefficient is not 0 is greater than 0.5.  The option `n.models = 1` fits just this model.
+
+Using the `coef` function applied to just this model we can extract the coefficients for the HPM model:
+
+```{r coef MPM}
+coef(crime.MPM)
+```
+
+**best predictive model:**
+
+This is the model that is closest to BMA predictions under squared error loss.
+```{r}
+BPM = predict(crime.ZS, estimator="BPM")
+(crime.ZS$namesx[attr(BPM$fit, 'model') +1])[-1]
+```
+
+Let's see how they compare:
+
+```{r}
+myblue = rgb(86,155,189, name="myblue", max=256)
+mydarkgrey = rgb(.5,.5,.5, name="mydarkgrey", max=1)
+par(cex=1.8, cex.axis=1.8, cex.lab=2, mfrow=c(2,2), mar=c(5, 5, 3, 3), col.lab=mydarkgrey, col.axis=mydarkgrey, col=mydarkgrey)
+library(GGally)
+ggpairs(data.frame(HPM = as.vector(HPM$fit),  #this used predict so we need to extract fitted values
+                   MPM = as.vector(MPM$fit),  # this used fitted
+                   BPM = as.vector(BPM$fit),  # this used fitted
+                   BMA = as.vector(BMA$fit))) # this used predict
+```
+
+
+Using the `se.fit = TRUE` option with `predict` we can also calculate standard deviations for prediction or for the mean and use this as imput for the `confint` function for the prediction object.
+
+```{r se}
+BPM = predict(crime.ZS, estimator="BPM", se.fit=TRUE)
+crime.conf.fit = confint(BPM, parm="mean")
+crime.conf.pred = confint(BPM, parm="pred")
+cbind(BPM$fit, crime.conf.fit, crime.conf.pred)
+
+```
+
+Finding the coefficients of the BPM is similar to the HPM:
+
+```{r BPM coef}
+# location of BPM;
+
+BPM$best
+crime.coef.ZS$conditionalmeans[BPM$best,]
+crime.coef.ZS$conditionalsd[BPM$best,]
+
+```
+Note that this model conditional on the choice of `X` used for fitting or prediction in deciding which is best in the code.
+
+
+* * *
+From the output we can ask which state has the highest predicted crime rate?  the lowest?   
+
+```{r min}
+# lowest 
+best = which.min(BPM$fit)
+crime.ZS$X[best, BPM$bestmodel]
+```
+What characteristics lead to the lowest rates?   (where do the X values fall in the distribution of the covariantes - are they at the extremes?)
+
+### Prediction with a new data set
+
+Using the `newdata` option as with the `predict` function in `lm`, you can predict at new values of the covariates (OK in this case the data frame is the same, so it is the same as the insample prediction).  The code below illustrates using BMA and Monte Carlo simulation to obtain the intervals.
+
+```{r}
+BMA = predict(crime.ZS, UScrime, estimator="BMA", se.fit=TRUE, nsim=10000)
+crime.conf.fit = confint(BMA, parm="mean")
+crime.conf.pred = confint(BMA, parm="pred")
+cbind(BPM$fit, crime.conf.fit, crime.conf.pred)
+```
+

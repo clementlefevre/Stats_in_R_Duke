@@ -1,0 +1,58 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+
+```{r}
+library(MASS)
+library(BAS)
+library(ggplot2)
+library(dplyr)
+data(UScrime)
+str(UScrime)
+```
+```{r}
+UScrime <- log(UScrime[,-2])
+UScrime.ZS =  bas.lm(y ~ ., 
+                   data=UScrime,
+                   prior="ZS-null",
+                   modelprior=uniform(),
+                   method = "MCMC") 
+
+```
+
+```{r}
+diagnostics(UScrime.ZS)
+```
+```{r}
+summary(UScrime.ZS)
+```
+
+```{r}
+plot(UScrime.ZS,which=1,add.smooth = T)
+```
+```{r}
+plot(UScrime.ZS,which=2,add.smooth = T)
+```
+
+```{r}
+plot(UScrime.ZS,which=3,add.smooth = T)
+```
+ 
+```{r}
+plot(UScrime.ZS,which=4,add.smooth = T)
+```
+```{r}
+image(UScrime.ZS)
+```
+
+```{r}
+
+coef_UScrime = coefficients(UScrime.ZS)
+plot(coef_UScrime, subset = c(1:15), ask=FALSE)
+```
+

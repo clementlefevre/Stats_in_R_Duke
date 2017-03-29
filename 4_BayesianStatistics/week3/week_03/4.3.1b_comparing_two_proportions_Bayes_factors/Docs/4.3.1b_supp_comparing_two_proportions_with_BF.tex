@@ -1,0 +1,175 @@
+\documentclass[11pt]{article}
+\usepackage{fullpage}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{graphics}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage{verbatim,comment}
+\usepackage[T1]{fontenc}
+\usepackage{tikz,overpic}
+\usetikzlibrary{fit,shapes.misc}
+
+\def\Bin{\textsf{Bin}}
+\def\lbeta{\tt{lbeta}}
+\def\Ber{\textsf{Ber}}
+\def\iid{\stackrel{iid}{\sim}}
+\newcommand{\Beta}{\textsf{Beta}}
+\def\probf{p_{\text{female}}}
+\def\probm{p_{\text{male}}}
+\def\p{p}
+\def\BF{\textit{BF}}
+\def\data{\text{data}}
+
+\title{Advanced Topic:  Derivation of Bayes Factors for Testing Two Proportions}
+%\author{Merlise A Clyde}
+
+\usepackage{Sweave}
+\begin{document}
+\input{4.3.1b_supp_comparing_two_proportions_with_BF-concordance}
+
+\maketitle 
+
+\section*{Posterior Distributions and Predictive Distributions}
+Let's start by reviewing Bayes Theorem for the posterior under a Bernoulli sampling model and a conjugate prior Beta prior. 
+We will start by considering the distributions with one group.
+
+
+If $X_{1}, \ldots, X_{n} \mid \theta \iid \Ber(\theta)$ 
+where each of the $X_i$ are independent and identically distributed with $P(X_i = 1 \mid \theta) = \theta)$ then the conjugate prior for $\theta$ is Beta prior distribution,  
+$$p(\theta) = \frac{\theta^{a-1} (1 - \theta)^{b-1}}{B(a,b)}$$
+where $B(a,b)$ is known as the Beta function and is the normalizing constant of the
+Beta distribution \footnote{the Beta function is formally defined as   
+$B(a,b) \equiv \int_0^1 \theta^{a - 1} (1 - \theta)^{b-1}$ so that 
+$$\int_0^1 \frac{\theta^{a - 1} (1 - \theta)^{b-1}}{B(a,b)} = 1.$$}
+ 
+
+Bayes Theorem says that
+$$p(\theta \mid X_1, \ldots, X_{n})  =  \frac{p(\theta) p(X_{1}, \ldots, X_{n} \mid \theta)}{p(X_1, \ldots, X_{n})}$$ 
+where the denominator is the marginal distribution or prior predictive distribution of the data.  Using the definition of the Beta density we can find this without having to use calculus as long as we know the normalizing constants for the beta density.   For those that are comfortable with calculus and integration see if you can confirm this using the definition in the footnote.
+
+
+Starting with  Bayes Theorem for the posterior density
+\begin{align*}
+p(\theta \mid X_1, \ldots, X_n)  & =  \frac{p(\theta) p(X_{1}, \ldots, X_{n} \mid \theta)}{p(X_1, \ldots, X_n)} \\
+\intertext{we  begin by substituting the distributions of data and prior}
+ & \propto \frac{\prod_{i=1}^n [\theta^{X_i} (1 - \theta)^{1 - X_i}] \theta^{a - 1}  (1 - \theta)^{b -1} } {B(a,b)} \\
+ & = \frac{\theta^{\sum_{i=1}^n X_i} (1 - \theta)^{\sum_{i=1}^n (1 - X_i) } \theta^{a - 1}  (1 - \theta)^{b -1} } {B(a,b)}.
+ \intertext{Letting $Y = \sum_{i=1}^n X_i$ and combining terms in the exponent, we have}
+ & \frac{\theta^{Y + a - 1} (1 - \theta)^{n - Y + b - 1}} {B(a,b)}.
+ \intertext{  Recognizing that the numerator is the `kernel' of a Beta density, we  just need to multiply by $B(a,b)$ and divide by $B(Y + a, n - Y + b)$ so that the result is a Beta density:}
+p(\theta \mid X_1, \ldots, X_n) & = \frac{\theta^{Y + a - 1} (1 - \theta)^{n - Y + b - 1}} {B(a,b)} \color{red}{\frac{B(a,b)}{B(Y + a, n - Y + b) }} \\
+\intertext{where the $B(A,b)$ term cancels from numerator and denominator to obtain the normalized posterior density for $\theta$.}
+\end{align*}
+Since the prior predictive distribution  or marginal distribution of the data is the denominator in Bayes Theorem, we have that the marginal distribution is the inverse of the term in red:
+\begin{equation}
+p(X_1, \ldots, X_n) = \frac{B(\sum X_i + a, n - \sum X_i + b) }{B(a,b)}
+\end{equation}
+which is a ratio of Beta functions and the posterior density for $\theta$ simplifies to
+$$
+p(\theta \mid X_1, \ldots, X_n)  = \frac{\theta^{\sum X_i + a - 1} (1 - \theta)^{n - \sum X_i + b - 1}} {B(\sum X_i + a,n - \sum X_i + b)}. 
+$$
+
+From this we have the updating rule for Beta distributions from Week 2: if
+under the prior, $$\theta \sim B(a_0, b_0)$$  (using the subscript $0$ to suggest no data), then after seeing $n$ observations from a Bernoulli($\theta$) with $Y$ "successes" and $n-Y$ "failures" the posterior distribution is
+$$
+\theta \mid Y, n \sim B(a_n, b_n)
+$$
+where $a_n = a_0 + Y$ and $b_n = b_0 + n-Y$ adding the prior and observed successes and the prior and observed failures.  
+
+\section*{Application to Bayes Factors}
+
+Recall that the Bayes Factor is defined as the ratio of prior predictive densities under two hypotheses $H_1$ and $H_2$:
+$$
+\BF[H_1:H_2] \equiv \frac{p(\data \mid H_1)}{ p(\data \mid H_2)}
+$$
+
+Let's apply this to the case with two groups of Bernoulli observations $X_{A,i} \mid \theta_A \iid \Ber(\theta_A)$ for $i = 1, \ldots, n_A$ and $X_{B,i} \mid \theta_B \iid \Ber(\theta_B)$ for $i = 1, \ldots, n_B$  where we are interested in testing $H_1: \theta_A = \theta_B$ versus $H_2: \theta_A \neq \theta_B$ 
+
+Under $H_1$ let's denote the common value of the parameter as $\theta = \theta_A = \theta_B$.  Our sampling model is that 
+ \begin{align*}
+X_{A,i} \mid \theta, H_1 & \iid \Ber(\theta) \text{ for }i = 1, \ldots, n_A \\
+X_{B,i} \mid \theta, H_1 & \iid \Ber(\theta)  \text{ for } i = 1, \ldots, n_B  
+\end{align*}
+If additionally the observations are independent across groups we may combine them into a single sample. Using a conjugate Beta prior 
+$$\theta \mid H_1 \sim B(a, b)$$
+then the prior predictive distributions for the data $X_{A,1}, \ldots, X_{A, n_A}, X_{B,1}, \ldots, X_{B, 1}, \ldots, X_{B, n_B}$ will be
+$$p(\data \mid H_1) = \frac{B(Y_A + Y_B + a, n_A + n_B - Y_A - Y_B + b)}{B(a,b)}
+$$
+where $Y_A = \sum_{i = 1}^{n_A} X_{A,i}$ and $Y_B = \sum_{i = 1}^{n_B}X_{B, i}$.
+
+Under $H_2$ we assume that each group has its own probability of success:
+\begin{align*}
+X_{A,i}  \mid \theta_A, H_2 & \iid \Ber(\theta_A) \text{ for }i = 1, \ldots, n_A \\
+X_{B,i}  \mid \theta_B, H_2 & \iid \Ber(\theta_B)  \text{ for } i = 1, \ldots, n_B  
+\end{align*}
+and as before are independent.  If we assign independent Beta priors to the $\theta$'s  for each group
+\begin{align*}
+\theta_A & \sim \Beta(a_A, b_A) \\
+\theta_B & \sim \Beta(a_B, b_B)
+\end{align*}
+then it is straightworward to show that we may apply the result about the predictive distribution to each group separately and that the joint predictive distribution is the product of the predictive distributions within each group:
+$$p(\data \mid H_2) = \frac{B(Y_A + a_A, n_A - Y_A  + b_A)} {B(a_A,b_A)}\times 
+\frac{B(Y_B + a_B, n_B - Y_B  + b_B)} {B(a_B,b_B)}
+$$
+
+
+The resulting Bayes factor is 
+\begin{align*}
+\BF[H_1: H_2] =  & \frac{B(Y_A + Y_B + a, n_A + n_B - Y_A - Y_B + b)}{B(a,b)} \, \div \\ & \left[ \frac{B(Y_A + a_A, n_A - Y_A  + b_A)}{B(a_A,b_A)} \, \times \,
+\frac{B(Y_B + a_B, n_B - Y_B  + b_B)} {B(a_B,b_B)} \right]
+\end{align*}
+expressed as a function of the summary counts in the two groups and sample sizes.  The beta fucntion  $B(,)$ is available in most statistical/mathematical programming packages.   When sample sizes are large, computing the log Bayes factor is recommended
+
+\begin{align*}
+\log(\BF[H_1: H_2]) =  & \lbeta(Y_A + Y_B + a, n_A + n_B - Y_A - Y_B + b) - \lbeta(a,b) \, - \\
+ & \left[ \lbeta(Y_A + a_A, n_A - Y_A  + b_A) - \lbeta(a_A,b_A) \right] - \\
+ & \left[\lbeta(Y_B + a_B, n_B - Y_B  + b_B) - \lbeta(a_B,b_B) \right]
+\end{align*} 
+where $\lbeta$ is the log of the Beta function.
+
+\section*{Hyperparameters}
+
+Consonni et al (2013) suggest setting $a_{A} = b_{A} = a_B = b_B$ (symetric Beta) and that $a_A = a_B = b_A = b_B$ under $H_2$ and that $a = a_A + a_B$ and $b = b_A + b_B$ under $H_1$ so that the same amount of prior information is imposed under $H_1$ and $H_2$.  
+
+One approach for deriving this is to think about the two independent sources of information for $\theta_A$ and $\theta_B$ under $H_1$. One way to interpret the hyper parameters of a Beta distribution is as psuedo or imaginary observations. 
+If we started with $a_A$ prior successes and $b_A$ failures and updated this with an improper prior distriubtion of the form 
+$$p(\theta) \propto \theta^{-1} (1 - \theta)^{-1}$$ then the 
+posterior distribution based on the psuedo observations would be
+$$\theta^{a_A - 1} \theta^{b_A -1}
+$$
+which hopefully is recognizable as a $B(a_A, b_A)$.   If we now use this as our prior and update it with the psuedo observations $a_B$ and $b_B$, then this new posterior will be proportional to 
+$$
+\theta^{a_A + a_B -1} (1 - \theta)^{b_A + b_B -1}
+$$
+or a $B(a_A + a_B, b_A + b_B)$ distribution.
+
+
+
+For a default prior, we may use the Jeffrey's or reference prior within each group under $H_2$, then $a_A = a_B = b_A = b_B = 1/2$ resulting in $a = 1, b=1$ or a Uniform distribution for $\theta$ under $H_1$.  If a reference prior under $H_1$ is desired, then  $a_A = a_B = b_A = b_B = 1/4$.   
+
+
+
+\section*{Alternative Priors}
+
+Consonni et al (2013) generalize this default Bayes factor to create what they refer to as a "balanced objective"  prior that addresses 1) problems with conventional Bayes factors that may inflate  the evidence for the smaller model when the prior on the larger model is too diffuse as and 2) issues where the evidence in favor of the smaller model accumulates at a slower rate as the sample size increases when the smaller model is true.
+
+G\^unel and Dickkey (1974) suggest alternative prior distributions in this and the more general problem of contingency tables.  These are available in the {\tt R} package {\tt BayesFactor}  (see  Jamil et al (2016) for more details.)
+
+\section*{References}
+Consonni, G., Forster, J.J. and La Rocca, L. (2013) The Whetstone and the Alum Block:  Balanced Objective Bayesian Comparison of Nested Models for Discrete Data. {\it Statistical SCience} 28: 398--423.
+\url{https://arxiv.org/pdf/1310.0661v1.pdf}
+
+\vspace{12pt}
+\noindent
+G\^unel E. and Dickey, J. (1974) Bayes factors for independence in contingency tables
+{\it Biometrika}  61 (3): 545-557.
+doi: 10.1093/biomet/61.3.545 \url{http://biomet.oxfordjournals.org/content/61/3/545.short}
+http://biomet.oxfordjournals.org/content/61/3/545.short
+
+\vspace{12pt}
+\noindent
+Jamil, T., Ly, A., Morey, R.D. et al. (2016). Behavioral  Research Methods.  doi:10.3758/s13428-016-0739-8  \url{http://link.springer.com/article/10.3758\%2Fs13428-016-0739-8}
+
+\end{document}

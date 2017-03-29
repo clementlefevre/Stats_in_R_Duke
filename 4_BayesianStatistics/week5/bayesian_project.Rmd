@@ -1,0 +1,191 @@
+---
+title: "Bayesian modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(statsr)
+library(BAS)
+library(lubridate)
+```
+
+### Load data
+
+
+
+```{r load-data}
+load("movies.Rdata")
+str(movies)
+```
+
+
+* * *
+
+## Part 1: Data
+
+*Describe how the observations in the sample are collected, and the implications of this data collection method on the scope of inference (generalizability / causality).*
+
+
+Data Collection: The current dataset as described in the instructions does consist in a random sample of movies extracted from both IMDB and Rotten Tomatoes databases.So, it is an OBSERVATIONAL STUDY
+
+Cases : In this dataset, cases are the movies.
+
+Variables : The 32 variables are listed in attached the movie_codebook.html
+
+
+###Introduction to the Data
+
+The data set "movies" is comprised of 651 randomly sampled movies produced and released before 2016. The movies are from American Studios. (We know this because the MPAA Ratings in the data applies only to American movies.) This data set includes information from both Rotten Tomatoes and IMDb.
+
+####About Rotten Tomatoes (see https://www.rottentomatoes.com/about/):
+
+Rotten Tomatoes and the Tomatometer™ rating is the most trusted measurement of quality entertainment. As the leading online aggregator of movie and TV show reviews from professional critics, Rotten Tomatoes offers the most comprehensive guide to what's fresh. The world famous Tomatometer™ rating represents the percentage of positive professional reviews for films and TV shows and is used by millions every day, to help with their entertainment viewing decisions. Rotten Tomatoes designates the best reviewed movies and TV shows as Certified Fresh. That accolade is awarded with Tomatometer ratings of 75% and higher and a required minimum number of reviews.
+
+####About IMDB (see https://en.wikipedia.org/wiki/IMDb)
+
+The Internet Movie Database (abbreviated IMDb) is an online database of information related to films, television programs and video games, including cast, production crew, fictional characters, biographies, plot summaries, trivia and reviews. As of June 2016, IMDb has approximately 3.7 million titles (including episodes) and 7 million personalities in its database.
+
+The site enables registered users to submit new material and request edits to existing entries. Although all data is checked before going live, the system has been open to abuse and occasional errors are acknowledged. Users are also invited to rate any film on a scale of 1 to 10, and the totals are converted into a weighted mean-rating that is displayed beside each title, with online filters employed to deter ballot-stuffing. The site also features message boards which stimulate regular debates among authenticated users.
+
+###Scope of Inference 
+This information suggests the data set should be considered the result of an observational retrospective study that uses a random sampling design to select a representative sample from U.S. movies. When random sampling has been employed in data collection, the results should be generalizable to the target population. Therefore, the results of the analysis should be generalizable to all the movies released between 1970 - 2014.
+
+
+
+#### generabizability
+
+In order to get an idea whether the random sample is generalizable, i compared it with a larger  IMDB titles dataset (236,710 different movies).
+
+I filtered this imdb dataset on the same time period as the movies dataset :
+```{r}
+summary(movies$thtr_rel_year)
+movies$release_date<-dym(sprintf('%s%s', movies$thtr_rel_year, movies$thtr_rel_month))
+max(movies$release_date)
+max(movies$thtr_rel_year)
+ggplot(data=movies,aes(x=release_date)) + geom_bar()
+ggplot(data=movies,aes(x=thtr_rel_month)) + geom_histogram() +scale_x_discrete(name ="Month of release",limits=month.abb[c(1:12)])
+
+movies$release_date<-NULL
+
+```
+
+
+If first extracted a random sample of this dataset, filtered on the same period :
+```{r}
+
+min_tht_release_year <- min(movies$thtr_rel_year)
+max_tht_release_year<- max(movies$thtr_rel_year)
+imdb_titles<-read.csv('imdb_official_titles.csv')
+sample_imdb_titles<-sample_n(imdb_titles[(imdb_titles$year>=min_tht_release_year) &
+ (imdb_titles$year<=max_tht_release_year),],nrow(movies))
+
+both_datasets<-data.frame(movies$thtr_rel_year,sample_imdb_titles$year)
+colnames(both_datasets) <- c("movies","imdb_sample")
+both_datasets<-both_datasets %>% gather('dataset','release_year')
+
+ggplot(data=both_datasets,aes(x=release_year,fill=dataset))+geom_histogram(position="identity",alpha=0.3)
+
+
+```
+As both movies and imdb sample are not normally distributed :
+```{r}
+shapiro.test(movies$thtr_rel_year)
+shapiro.test(sample_imdb_titles$year)
+```
+I use the Kolmogorvo-Smirnov test to check if both release year are equally distributed.
+
+```{r}
+ks.test(movies$thtr_rel_year,sample_imdb_titles$year)
+```
+Then a qqplot to confirm this result :
+```{r}
+qqplot(movies$thtr_rel_year,sample_imdb_titles$year)
+```
+#### Causality
+Note that observational studies show associations. In a data analysis, association does not imply causation. Causation can only be inferred from a randomized experiment. This analysis does not meet the requirements of an experiment.
+
+
+
+* * *
+
+## Part 2: Data manipulation
+
+*Create new variables using the mutate function in the dplyr package following these guidelines:*
+
+*-Create new variable based on `title_type`:*
+*- New variable should be called `feature_film` with levels yes (movies that are feature films) and no (2 pt)*
+ 
+```{r}
+movies<-movies %>% mutate(feature_film = if_else(movies$title_type=='Feature Film','yes','no') )
+
+```
+
+*Create new variable based on `genre`: *
+*- New variable should be called `drama` with levels yes (movies that are dramas) and no (2 pt)*
+```{r}
+movies<-movies %>% mutate(drama = if_else(movies$title_type=='Drama','yes','no'))
+```
+
+*Create new variable based on `mpaa_rating`: *
+*- New variable should be called `mpaa_rating_R` with levels yes (movies that are R rated) and no (2 pt)*
+```{r}
+movies<-movies %>% mutate(mpaa_rating_R = if_else(movies$mpaa_rating=='R','yes','no'))
+```
+
+
+*Create two new variables based on `thtr_rel_month`:*
+*- New variable called `oscar_season` with levels yes (if movie is released in November, October, or December) and no (2 pt)*
+```{r}
+movies<-movies %>% mutate(oscar_season = if_else(movies$thtr_rel_month>9,'yes','no'))
+```
+
+*- New variable called `summer_season` with levels yes (if movie is released in May, June, July, or August) and no (2 pt)*
+```{r}
+movies<-movies %>% mutate(summer_season = if_else((movies$thtr_rel_month>4)&(movies$thtr_rel_month<9),'yes','no'))
+```
+
+```{r}
+head(movies)
+```
+
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 4: Modeling
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 5: Prediction
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 6: Conclusion
+
