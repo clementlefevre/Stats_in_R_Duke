@@ -134,7 +134,7 @@ movies<-movies %>% mutate(feature_film = if_else(movies$title_type=='Feature Fil
 *Create new variable based on `genre`: *
 *- New variable should be called `drama` with levels yes (movies that are dramas) and no (2 pt)*
 ```{r}
-movies<-movies %>% mutate(drama = if_else(movies$title_type=='Drama','yes','no'))
+movies<-movies %>% mutate(drama = if_else(movies$genre=='Drama','yes','no'))
 ```
 
 *Create new variable based on `mpaa_rating`: *
@@ -155,9 +155,6 @@ movies<-movies %>% mutate(oscar_season = if_else(movies$thtr_rel_month>9,'yes','
 movies<-movies %>% mutate(summer_season = if_else((movies$thtr_rel_month>4)&(movies$thtr_rel_month<9),'yes','no'))
 ```
 
-```{r}
-head(movies)
-```
 
 
 
@@ -165,9 +162,47 @@ head(movies)
 
 ## Part 3: Exploratory data analysis
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+*Perform exploratory data analysis (EDA) of the relationship between audience_score and the new variables constructed in the previous part. Your EDA should contain numerical summaries and visualizations. This might mean you initially create a lot more visualizations and summary statistics than what you finally choose to include in your paper. Each R output and plot should be accompanied by a brief interpretation.*
+
+```{r}
+
+plot_new_variables_relationship <- function(movies,new_var){
+  
+  print(new_var)
+   # ret1<-ggplot(data=movies,aes(y=audience_score,x=new_var)) + geom_boxplot()
+
+  p<-ggplot(data=movies,aes(x=thtr_rel_year,y=audience_score,col=get(new_var))) 
+  p<-p+ geom_point()
+  print(p)
+  
+}
+
+
+plot_new_variables_relationship(movies,"feature_film")
+```
+plot_new_variables_relationship(movies,'drama')
+
+
+```{r}
+set.seed(123)
+dat <- data.frame(Variable2=rnorm(100),Variable1=c(0,1),Variable3=sample(0:1,100,T))
+
+myfunction = function (data, Variable1) {
+  ggplot(data=data, aes_string(sprintf("factor(%s)",Variable1), "Variable2"))+
+    geom_boxplot(fill="grey", colour="black")+
+    labs(title = sprintf("%s and Variable2", Variable1)) +
+    labs (x = Variable1, y = "Variable2")
+}
+
+p1 <- myfunction(dat,"Variable1")
+p2 <- myfunction(dat,"Variable3")
+print (p1)
+```
+
+
+
+
+
 
 * * *
 
