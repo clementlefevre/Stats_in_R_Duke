@@ -181,7 +181,7 @@ First, we draw a correlogramm of the selected variables :
 movies_selected_var<- movies %>% select(one_of(new_vars)) %>% mutate_each(funs(ifelse(. == 'no', 0,1)))
 movies_selected_var$audience_score <- movies$audience_score
 
-str(movies_selected_var)
+
 corr <- round(cor(movies_selected_var),3)
 ggcorrplot(corr, hc.order = TRUE, 
            type = "lower", 
@@ -222,17 +222,95 @@ for (var in new_vars){
 
 ## Part 4: Modeling
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+*Develop a Bayesian regression model to predict `audience_score` from the following explanatory variables. Note that some of these variables are in the original dataset provided, and others are new variables you constructed earlier:`feature_film`,` drama`, `runtime`, `mpaa_rating_R`, `thtr_rel_year`, `oscar_season`, `summer_season`, `imdb_rating`, `imdb_num_votes`, `critics_score`, `best_pic_nom`, `best_pic_win`, `best_actor_win`, `best_actress_win`, `best_dir_win`, `top200_box`. Complete Bayesian model selection and report the final model. Also perform model diagnostics and interpret coefficients of your final model in context of the data.*
+
+First, we create a new dataset based on the listed variables :
+```{r}
+features<- c("audience_score", "feature_film","drama", "runtime", "mpaa_rating_R", "thtr_rel_year", "oscar_season", "summer_season", "imdb_rating", "imdb_num_votes", "critics_score", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box")
+
+
+
+
+features
+movies_with_features<- movies %>% select(one_of(features))
+movies_with_features$audience_score <- movies$audience_score
+
+
+```
+
+Let's plot a correlogram of the selected features :
+```{r}
+movies_all_numeric <- movies_with_features %>% mutate_if(is.factor,as.numeric) %>% na.omit()
+
+
+corr <- round(cor(movies_all_numeric),2)
+ggcorrplot(corr, hc.order = FALSE, 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 2, 
+           method="circle", 
+           colors = c("tomato2", "white", "springgreen3"), 
+           title="Correlogram of all features", 
+           ggtheme=theme_bw)
+```
+let's statr with a Bayesian regression using all features :
+
+```{r}
+movies_no_na = na.omit(movies_with_features)
+bma_movies = bas.lm(audience_score ~ . -audience_score, data = movies_no_na,
+                   prior = "ZS-null", #"BIC"
+                   modelprior = uniform(),
+                   method = 'MCMC')
+bma_movies
+```
+
+```{r}
+summary(bma_movies)
+```
+
+```{r}
+diagnostics(bma_movies)
+```
+
+```{r}
+plot(bma_movies)
+image(bma_movies,rotate = F)
+
+
+```
+
+```{r}
+HPM = predict(bma_movies, estimator="HPM")
+movies.coef.ZS = coef(bma_movies)
+movies.coef.ZS$conditionalmeans[HPM$best,]
+```
+```{r}
+coef(HPM)
+```
+
+
 
 * * *
 
 ## Part 5: Prediction
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+Moonlight
+
+```{r}
+moonlight_df<-data.frame('runtime'=110, 'imdb_rating'=7.6,'critics_score'=.97, "feature_film"="yes","drama"="yes",  "mpaa_rating_R"="no", "thtr_rel_year"=2016, "oscar_season"="no", "summer_season"="no", "imdb_num_votes"=115403,  "best_pic_nom"="no", "best_pic_win"="no", "best_actor_win"="no", "best_actress_win"="no", "best_dir_win"="yes", "top200_box"="yes")
+
+
+
+BMA = predict(bma_movies, df, estimator="BMA", se.fit=TRUE, nsim=10000)
+crime.conf.fit = confint(BMA, parm="mean")
+crime.conf.pred = confint(BMA, parm="pred")
+result<-cbind(BPM$fit, crime.conf.fit, crime.conf.pred)
+result
+```
+```{r}
+result
+```
+
 
 * * *
 
