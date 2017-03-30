@@ -229,8 +229,6 @@ First, we create a new dataset based on the listed variables :
 features<- c("audience_score", "feature_film","drama", "runtime", "mpaa_rating_R", "thtr_rel_year", "oscar_season", "summer_season", "imdb_rating", "imdb_num_votes", "critics_score", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box")
 
 
-
-
 features
 movies_with_features<- movies %>% select(one_of(features))
 movies_with_features$audience_score <- movies$audience_score
@@ -253,40 +251,48 @@ ggcorrplot(corr, hc.order = FALSE,
            title="Correlogram of all features", 
            ggtheme=theme_bw)
 ```
-let's statr with a Bayesian regression using all features :
+let's start with a Bayesian regression using all selected features :
 
 ```{r}
 movies_no_na = na.omit(movies_with_features)
-bma_movies = bas.lm(audience_score ~ . -audience_score, data = movies_no_na,
+movies.ZS = bas.lm(audience_score ~ . -audience_score, data = movies_no_na,
                    prior = "ZS-null", #"BIC"
                    modelprior = uniform(),
                    method = 'MCMC')
-bma_movies
+movies.ZS
 ```
 
 ```{r}
-summary(bma_movies)
+summary(movies.ZS)
+```
+The resulting determination coefficients R2 are quite good, above 0.75, which is not a suprise given the strongly correlated predictors **imdb_rating** and **critics_score**
+We can now check whether the Markov chain Monte Carlo simulation has run long enough :
+```{r}
+diagnostics(movies.ZS)
+```
+
+Now, let's proceed to a step by step analysis of the generated model :
+
+First, we plot the spread of the residuals along the audience_score :
+
+```{r}
+plot(movies.ZS,which=1,add.smooth=T)
+```
+
+What we notice here are two elements :
+- the movies with an effective low audience (from 0% to 35%) score are over rated by the model.
+```{r}
+plot(movies.ZS,which=1,add.smooth=T)
+image(movies.ZS,rotate = F)
 ```
 
 ```{r}
-diagnostics(bma_movies)
-```
-
-```{r}
-plot(bma_movies)
-image(bma_movies,rotate = F)
-
-
-```
-
-```{r}
-HPM = predict(bma_movies, estimator="HPM")
-movies.coef.ZS = coef(bma_movies)
+HPM = predict(movies.ZS, estimator="HPM")
+movies.coef.ZS = coef(movies.ZS)
 movies.coef.ZS$conditionalmeans[HPM$best,]
 ```
 ```{r}
 coef(HPM)
-test
 ```
 
 
@@ -298,18 +304,55 @@ test
 Moonlight
 
 ```{r}
-moonlight_df<-data.frame('runtime'=110, 'imdb_rating'=7.6,'critics_score'=.97, "feature_film"="yes","drama"="yes",  "mpaa_rating_R"="no", "thtr_rel_year"=2016, "oscar_season"="no", "summer_season"="no", "imdb_num_votes"=115403,  "best_pic_nom"="no", "best_pic_win"="no", "best_actor_win"="no", "best_actress_win"="no", "best_dir_win"="yes", "top200_box"="yes")
+moonlight_df<-data.frame('runtime'=110, 'imdb_rating'=7.6,'critics_score'=.97, "feature_film"=as.factor('yes'),"drama"=as.factor('yes'),  "mpaa_rating_R"=as.factor('no'), "thtr_rel_year"=2016, "oscar_season"=as.factor('no'), "summer_season"=as.factor('no'), "imdb_num_votes"=115403,  "best_pic_nom"=as.factor('no'), "best_pic_win"=as.factor('no'), "best_actor_win"=as.factor('no'), "best_actress_win"=as.factor('no'), "best_dir_win"=as.factor('yes'), "top200_box"=as.factor('yes'),'audience_score'=0)
+
+df_with_prediction<- rbind(movies_with_features,moonlight_df)
 
 
+BMA = predict(movies.ZS, newdata=df_with_prediction[nrow(df_with_prediction),], estimator="BMA", se.fit=TRUE, nsim=10000)
+print('BMA')
+BMA$fit
 
-BMA = predict(bma_movies, df, estimator="BMA", se.fit=TRUE, nsim=10000)
-crime.conf.fit = confint(BMA, parm="mean")
-crime.conf.pred = confint(BMA, parm="pred")
-result<-cbind(BPM$fit, crime.conf.fit, crime.conf.pred)
-result
+HPM = predict(movies.ZS, newdata=df_with_prediction[100:105,], estimator="HPM", se.fit=TRUE, nsim=10000)
+print('HPM')
+HPM$fit
+
+MPM = predict(movies.ZS, newdata=df_with_prediction[100:105,,], estimator="MPM", se.fit=TRUE, nsim=10000)
+print('MPM')
+MPM$fit
+
+BPM = predict(movies.ZS, newdata=df_with_prediction[100:105,,], estimator="BPM", se.fit=TRUE, nsim=10000)
+print ('BPM')
+BPM$fit
+
 ```
+
 ```{r}
-result
+library(BAS)
+set.seed(42)
+
+d <- data.frame(
+  likes.cats = c(rep("yes", 60), rep("no", 40)),
+  likes.dogs = c(rep("yes", 30), rep("no", 70)),
+  fish.eaten.per.year = c(rnorm(100, mean=20, sd=5)),
+  donated.to.cats = c(rnorm(50, mean=50, sd=10), rep(0, 50))
+)
+
+m <- bas.lm(donated.to.cats ~ likes.cats + likes.dogs + fish.eaten.per.year,
+            data=d, prior="BIC", modelprior=uniform())
+
+
+
+nd <- data.frame("yes", "no", 100, 50)
+colnames(nd) = colnames(d)
+
+#predict(m.lm, newdata=nd)
+dnd = rbind(d, nd)
+
+#model.matrix( ~ likes.cats + likes.dogs + fish.eaten.per.year, data=dnd[101,])  # no errors for model.matrix
+# Now predict
+pred.m = predict(m, newdata=dnd[100:101,], se=T)  # works
+pred.m
 ```
 
 
