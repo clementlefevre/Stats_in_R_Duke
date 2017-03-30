@@ -286,6 +286,7 @@ movies.coef.ZS$conditionalmeans[HPM$best,]
 ```
 ```{r}
 coef(HPM)
+test
 ```
 
 
