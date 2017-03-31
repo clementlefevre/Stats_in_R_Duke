@@ -403,8 +403,8 @@ Let's have a look at the best model's predictors  :
 
 
 
-With fitted value of 75.9754% for BMA and 74.4379% for HPM, we are 5% less than the observed value.
-For HPM, the best model used *imdb_rating* and unsurprisingly, *critics_score*.
+With fitted value of *75.9754%* for *BMA* and 7*4.4379%* for *HPM*, we are 5% less than the observed value.
+For HPM, the best model used `imdb_rating` and unsurprisingly, `critics_score`.
 
 
 * * *
@@ -414,10 +414,10 @@ For HPM, the best model used *imdb_rating* and unsurprisingly, *critics_score*.
 *A brief summary of your findings from the previous sections without repeating your statements from earlier as well as a discussion of what you have learned about the data and your research question. You should also discuss any shortcomings of your current study (either due to data collection or methodology) and include ideas for possible future research.*
 
 
-The aim of this project was to find the best prediction model for audience_score. Even by creating new variables extracted from the current dataset, we could not beat the predictive strength of both imdb_rating and critics_rating, which, per se, are the closest features in term of correlation to our target audience_score.
+The aim of this project was to find the best prediction model for audience_score. Even by creating new variables extracted from the current dataset, we could not beat the predictive strength of both `imdb_rating` and `critics_rating`, which, per se, are the closest features in term of correlation to our target `audience_score`.
 
-I found worring the heterogenous spread of residuals for fitted audience_score, which implies the dataset might be first purged from low-rated movies, and that i did an error during the data preparation.
+I found worring the heterogenous spread of residuals for fitted `audience_score`, which implies the dataset might be first purged from low-rated movies, and that i did an error either during the data preparation or the model definition.
 
-This is confirmed by the fact that a simple linear regression model predicts an audience_score of 80.9% for Moonlight (81% observed audience_score).
+This is confirmed by the fact that a *simple linear regression model* predicts an audience_score of *80.9%* for Moonlight (81% observed audience_score).
 
 
