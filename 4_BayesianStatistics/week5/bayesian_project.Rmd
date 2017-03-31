@@ -242,12 +242,12 @@ ggcorrplot(corr, hc.order = FALSE,
            ggtheme=theme_bw)
 ```
 
-Without a model, we can observe that the heavy predictors for audience_score are unsurprisingly imdb_rating (0.86) and critics_score (0.7)
+Without a model, we can observe that the heavy predictors for audience_score are unsurprisingly `imdb_rating` (0.86) and `critics_score` (0.7)
 They dwarf all the newly variables.
 
 
 let's start with a Bayesian regression model using all selected features :
-I use the Zellner-Siow Cauchy prior for this model, with a Markov chain Monte Carlo method.
+I use the **Zellner-Siow Cauchy prior** for this model, with a **Markov chain Monte Carlo** method.
 
 ```{r}
 movies_no_na = na.omit(movies_with_features)
@@ -318,15 +318,31 @@ plot(movies.ZS,which=4,add.smooth=T)
 
 Finally, this plot confirms our first assumption : only imdb_rating and critics_score are relevant predictors for audience_score.
 
-
-
-
-
 ```{r}
 image(movies.ZS,rotate = F)
 ```
 
+Again, almost all best ranking models use  `imdb_rating` and `critics_score`.
 
+
+
+We can have a look at the mean coefficient of the models :
+
+```{r}
+coef(movies.ZS)
+```
+
+Ranking first in term of posterior probability :
+
+- `imdb_rating` (with a positive coefficient), 
+
+- `critics_score` (with a positive coefficient),
+
+- `runtime` (with a negative coefficient),
+
+- `feature_film` (with a negative coefficient).
+
+The better the critics are (sounds obvious), the shorter the movie is (runtime and feature_film), the better we can expect a good audience score.
 
 
 
@@ -334,62 +350,74 @@ image(movies.ZS,rotate = F)
 
 ## Part 5: Prediction
 
-Moonlight
+
+I choose the oscar winning movie Moonlight, with a **81**% Rotten Tomatoes audience score.
+
+![ ](moon.jpg)
+
+
+
+
+As i did not managed to use a new dataframe in the BAS predict method, i combined both *movies* and the testing dataframe.
+
 
 ```{r}
-moonlight_df<-data.frame('runtime'=110, 'imdb_rating'=7.6,'critics_score'=.97, "feature_film"=as.factor('yes'),"drama"=as.factor('yes'),  "mpaa_rating_R"=as.factor('no'), "thtr_rel_year"=2016, "oscar_season"=as.factor('no'), "summer_season"=as.factor('no'), "imdb_num_votes"=115403,  "best_pic_nom"=as.factor('no'), "best_pic_win"=as.factor('no'), "best_actor_win"=as.factor('no'), "best_actress_win"=as.factor('no'), "best_dir_win"=as.factor('yes'), "top200_box"=as.factor('yes'),'audience_score'=0)
+moonlight_df<-data.frame('runtime'=110, 'imdb_rating'=7.6,'critics_score'=.97, "feature_film"=as.factor('yes'),"drama"=as.factor('yes'),  "mpaa_rating_R"=as.factor('no'), "thtr_rel_year"=2016, "oscar_season"=as.factor('no'), "summer_season"=as.factor('no'), "imdb_num_votes"=115403,  "best_pic_nom"=as.factor('yes'), "best_pic_win"=as.factor('no'), "best_actor_win"=as.factor('no'), "best_actress_win"=as.factor('no'), "best_dir_win"=as.factor('no'), "top200_box"=as.factor('no'),'audience_score'=0)
 
-df_with_prediction<- rbind(movies_with_features,moonlight_df)
+df_with_prediction<- rbind(movies_with_features,moonlight_df,moonlight_df)
+```
 
+I then predict the audience_score using : 
 
-BMA = predict(movies.ZS, newdata=df_with_prediction[nrow(df_with_prediction),], estimator="BMA", se.fit=TRUE, nsim=10000)
++ Bayesian Model Average (*BMA*) to get the best prediction under squared error loss :
+
+```{r}
+
+movies.coef.ZS = coef(movies.ZS)
+
+BMA = predict(movies.ZS, newdata=tail(df_with_prediction,1), estimator="BMA")
 print('BMA')
 BMA$fit
+```
 
-HPM = predict(movies.ZS, newdata=df_with_prediction[100:105,], estimator="HPM", se.fit=TRUE, nsim=10000)
+
+
++ and Highest Probability Model (*HPM*) as benchmark :
+
+```{r}
+
+HPM = predict(movies.ZS, newdata=tail(df_with_prediction,2), estimator="HPM")
 print('HPM')
 HPM$fit
 
-MPM = predict(movies.ZS, newdata=df_with_prediction[100:105,,], estimator="MPM", se.fit=TRUE, nsim=10000)
-print('MPM')
-MPM$fit
-
-BPM = predict(movies.ZS, newdata=df_with_prediction[100:105,,], estimator="BPM", se.fit=TRUE, nsim=10000)
-print ('BPM')
-BPM$fit
-
 ```
+
+Let's have a look at the best model's predictors  :
 
 ```{r}
-library(BAS)
-set.seed(42)
 
-d <- data.frame(
-  likes.cats = c(rep("yes", 60), rep("no", 40)),
-  likes.dogs = c(rep("yes", 30), rep("no", 70)),
-  fish.eaten.per.year = c(rnorm(100, mean=20, sd=5)),
-  donated.to.cats = c(rnorm(50, mean=50, sd=10), rep(0, 50))
-)
+(movies.ZS$namesx[HPM$bestmodel +1])[-1]
 
-m <- bas.lm(donated.to.cats ~ likes.cats + likes.dogs + fish.eaten.per.year,
-            data=d, prior="BIC", modelprior=uniform())
-
-
-
-nd <- data.frame("yes", "no", 100, 50)
-colnames(nd) = colnames(d)
-
-#predict(m.lm, newdata=nd)
-dnd = rbind(d, nd)
-
-#model.matrix( ~ likes.cats + likes.dogs + fish.eaten.per.year, data=dnd[101,])  # no errors for model.matrix
-# Now predict
-pred.m = predict(m, newdata=dnd[100:101,], se=T)  # works
-pred.m
 ```
+
+
+
+
+With fitted value of 75.9754% for BMA and 74.4379% for HPM, we are 5% less than the observed value.
+For HPM, the best model used *imdb_rating* and unsurprisingly, *critics_score*.
 
 
 * * *
 
 ## Part 6: Conclusion
+
+*A brief summary of your findings from the previous sections without repeating your statements from earlier as well as a discussion of what you have learned about the data and your research question. You should also discuss any shortcomings of your current study (either due to data collection or methodology) and include ideas for possible future research.*
+
+
+The aim of this project was to find the best prediction model for audience_score. Even by creating new variables extracted from the current dataset, we could not beat the predictive strength of both imdb_rating and critics_rating, which, per se, are the closest features in term of correlation to our target audience_score.
+
+I found worring the heterogenous spread of residuals for fitted audience_score, which implies the dataset might be first purged from low-rated movies, and that i did an error during the data preparation.
+
+This is confirmed by the fact that a simple linear regression model predicts an audience_score of 80.9% for Moonlight (81% observed audience_score).
+
 
