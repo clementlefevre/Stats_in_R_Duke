@@ -1,0 +1,109 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `brfss2013`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The data used for the research has been collected by the Centers for Disease Control and Prevention (CDC) and US States for the year 2013. This study aimed at analysing behavioral risk factors and preventive health practices and the related health condition. There are 330 variables and 491775 subjects in the 2013 data file. Thoses variables contains informations related to :
+
+- demographics and social context,
+
+- health care access,
+
+- behavioral features (e.g. tobacco use, physical activity),
+
+- current health condition, 
+
+- pathology screening.
+
+
+#### Cases
+The cases are non-institutionalized adults residing in the US.
+
+#### Sampling methodology
+
+Interviews are either via landline of cell phone.
+For landline calls, a stratified sampling process has been used for the selection of the number : 1 stratum for high density numbers; an other for medium density.
+On top of this sampling technique, the landlines calls have sampled with one randomly selected adult ofr for each household.
+
+For cell calls, a simple random sampling based on the phone number, for person receiving  90% or more of the calls per cell phone.
+
+#### Scope of inference
+
+Since the study does consist in a telephone survey on randomly selected adults and no treatments is randomly assigned to the subjects, we can considere it as an **observational study**.
+
+Therefore we can conclude on **associations** but not on causality between the explanatory variables (behavior and practices) and the response (health condition).
+
+From those points we can infer that the results observed in this study can be **generalizable** on the non-institutionalized adults residing in the US, but not causality can be drawn.
+
+
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+
+**Research quesion 2:**
+
+**Research quesion 3:**
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button (green button with orange arrow) above. Make sure that your code is visible
+in the project you submit. Delete this note when before you submit your work.
+
+**Research quesion 1:**
+
+```{r}
+
+```
+
+
+
+**Research quesion 2:**
+
+```{r}
+
+```
+
+
+
+**Research quesion 3:**
+
+```{r}
+
+```
+
