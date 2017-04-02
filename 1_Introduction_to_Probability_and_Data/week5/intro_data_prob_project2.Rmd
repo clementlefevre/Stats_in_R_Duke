@@ -14,6 +14,8 @@ output:
 ```{r load-packages, message = FALSE}
 library(ggplot2)
 library(dplyr)
+library(tidyr)
+source('multiplot.r)
 ```
 
 ### Load data
@@ -62,7 +64,7 @@ Since the study does consist in a telephone survey on randomly selected adults a
 
 Therefore we can conclude on **associations** but not on causality between the explanatory variables (behavior and practices) and the response (health condition).
 
-From those points we can infer that the results observed in this study can be **generalizable** on the non-institutionalized adults residing in the US, but not causality can be drawn.
+From those points we can infer that the results observed in this study can be **generalizable** on the non-institutionalized adults residing in the US, but no causality can be drawn.
 
 
 
@@ -70,11 +72,11 @@ From those points we can infer that the results observed in this study can be **
 
 ## Part 2: Research questions
 
-**Research quesion 1:**
+**Research quesion 1:** Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?
 
-**Research quesion 2:**
+**Research quesion 2:** Are veterans `veteran3` more likely to be single `marital` and more prone to be in poor health `poorhlth` ?
 
-**Research quesion 3:**
+**Research quesion 3:** Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?
 
 
 * * *
@@ -85,25 +87,94 @@ NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk"
 button (green button with orange arrow) above. Make sure that your code is visible
 in the project you submit. Delete this note when before you submit your work.
 
-**Research quesion 1:**
+**Research question 1:**
+Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?
 
 ```{r}
+
+# useful method to check the NA ratio in the features
+NA.ratio <- function(df,cols){
+  df_selected <- df %>% select(one_of(cols)) 
+  print ('missing answer ratio : ')
+  (colMeans(is.na(df_selected))) %>% t()
+   
+}
+
+
+
+features_1 <- c("sleptim1","smokday2","avedrnk2")
+
+NA.ratio(brfss2013,features_1)
+
+df_q1<-brfss2013 %>% select(one_of(features))
+
+dim(df_q1)
+dim(df_q1 %>% na.omit())
+
+df_q1_no_na<-df_q1 %>% na.omit()
+
+str(df_q1_no_na)
+unique(df_q1_no_na$smokday2)
+
+ggplot(data=df_q1_no_na, aes(x=smokday2,y=sleptim1, fill=smokday2)) + geom_boxplot()
+ggplot(data=df_q1_no_na %>% filter(smokday2!='Some days'), aes(x=avedrnk2,y=sleptim1,color=smokday2)) + geom_point(alpha=0.5,position = 'jitter')
+
+```
+```{r}
+ggplot(data=df_q1_no_na %>% mutate(bin = ntile(avedrnk2, 4)),aes(x=sleptim1,colour=factor(bin))) + geom_histogram()
+```
+
+
+
+**Research question 2:**
+Are veterans `veteran3` more likely to be single `marital` and more prone to be in poor health `poorhlth` ?
+```{r}
+
+features_2 <- c("veteran3","marital","poorhlth")
+
+NA.ratio(brfss2013,features_2)
+
+df_q2<-brfss2013 %>% select(one_of(features_2))
+
+dim(df_q2)
+dim(df_q2 %>% na.omit())
+
+df_q2_no_na<-df_q2 %>% na.omit()
+
+str(df_q2_no_na)
+
+p1<-ggplot(data=df_q2_no_na %>% filter(veteran3=='No'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
+p2<-ggplot(data=df_q2_no_na %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
+
+ layout <- matrix(c(1,2), nrow = 2, byrow = TRUE)
+  multiplot(p1,p2,cols=2,layout=layout)
+
 
 ```
 
 
 
-**Research quesion 2:**
+**Research question 3:**
+
+Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?
 
 ```{r}
+features_3 <- c("fruit1","seatbelt")
 
-```
+NA.ratio(brfss2013,features_3)
 
+df_q3<-brfss2013 %>% select(one_of(features_3))
 
+dim(df_q3)
+dim(df_q3 %>% na.omit())
 
-**Research quesion 3:**
+df_q3_no_na<-df_q3 %>% na.omit()
 
-```{r}
+str(df_q3_no_na)
+
+ggplot(data=df_q3_no_na, aes(x=seatbelt,y=fruit1)) + geom_boxplot()
+
+ggplot(data=df_q3_no_na, aes(x=fruit1)) + geom_histogram(binwidth = 5)
 
 ```
 
