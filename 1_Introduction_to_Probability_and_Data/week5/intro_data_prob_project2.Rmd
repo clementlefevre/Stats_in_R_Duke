@@ -15,7 +15,7 @@ output:
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-source('multiplot.r)
+source('multiplot.r')
 ```
 
 ### Load data
@@ -106,7 +106,7 @@ features_1 <- c("sleptim1","smokday2","avedrnk2")
 
 NA.ratio(brfss2013,features_1)
 
-df_q1<-brfss2013 %>% select(one_of(features))
+df_q1<-brfss2013 %>% select(one_of(features_1))
 
 dim(df_q1)
 dim(df_q1 %>% na.omit())
@@ -158,12 +158,53 @@ p2<-ggplot(data=df_q2_no_na %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlt
 
 Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?
 
+In this case, the `fruit1` variable has to be a little bit reworked.
+Looking a the `fruit1` definition in the  2013 BRFSS Codebook report :
+
+| Value   	| Label           
+|----------	|---------------	|
+| 101 - 199  	| Times per day  	|
+| 201 - 299 	| Times per week     	| 
+| 300 	| Less than one time per month 	|
+| 301 - 399 	| Times per month	|
+| 555  	| Don’t know/Not sure  	|
+| 777 	| Times per day  	|
+| 999 | Refused  	|
+| BLANK  	| Not asked or Missing   	|
+
+We can define categories rather than numeric values :
+
+```{r}
+categorize_fruits <- function(cell){
+  if(cell==300){
+    return("4_< Once in month")
+  }
+      if(cell<400 & cell>100){
+    group<-cell%/%100
+     return(switch(group,'1_day','2_week','3_month'))
+  } else{
+    return("5_NA")
+  }
+  }
+  
+
+fruit_and_seatbelt <-brfss2013 %>% select(fruit1,seatbelt) %>% na.omit() %>% rowwise()  %>%mutate(fruit_group =categorize_fruits(fruit1))  %>%ungroup()
+groupy<- fruit_and_seatbelt %>% filter(fruit_group!="5_NA") %>% group_by(fruit_group,seatbelt) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count))
+
+
+ggplot(arrange(groupy,fruit_group), aes(seatbelt, ratio)) +  geom_bar(aes(fill = fruit_group), position = "dodge", stat="identity") 
+
+
+```
+
+
+
 ```{r}
 features_3 <- c("fruit1","seatbelt")
 
-NA.ratio(brfss2013,features_3)
+NA.ratio(fruit_and_seatbelt,features_3)
 
-df_q3<-brfss2013 %>% select(one_of(features_3))
+df_q3<-fruit_and_seatbelt %>% select(one_of(features_3))
 
 dim(df_q3)
 dim(df_q3 %>% na.omit())
