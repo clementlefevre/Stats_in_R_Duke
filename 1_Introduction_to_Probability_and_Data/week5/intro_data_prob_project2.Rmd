@@ -90,6 +90,11 @@ in the project you submit. Delete this note when before you submit your work.
 **Research question 1:**
 Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?
 
+
+First we can script a function to get the NA ratio for each variable.
+
+If there is a low answer rate (<5%), it does not make sense to proceed further.
+
 ```{r}
 
 # useful method to check the NA ratio in the features
@@ -97,32 +102,54 @@ NA.ratio <- function(df,cols){
   df_selected <- df %>% select(one_of(cols)) 
   print ('missing answer ratio : ')
   (colMeans(is.na(df_selected))) %>% t()
-   
 }
 
+```
 
+Let's see what we get with our three variables in scope :
 
+```{r}
 features_1 <- c("sleptim1","smokday2","avedrnk2")
 
 NA.ratio(brfss2013,features_1)
 
-df_q1<-brfss2013 %>% select(one_of(features_1))
-
-dim(df_q1)
-dim(df_q1 %>% na.omit())
-
-df_q1_no_na<-df_q1 %>% na.omit()
-
-str(df_q1_no_na)
-unique(df_q1_no_na$smokday2)
-
-ggplot(data=df_q1_no_na, aes(x=smokday2,y=sleptim1, fill=smokday2)) + geom_boxplot()
-ggplot(data=df_q1_no_na %>% filter(smokday2!='Some days'), aes(x=avedrnk2,y=sleptim1,color=smokday2)) + geom_point(alpha=0.5,position = 'jitter')
-
 ```
+OK, we can move forward.
+
 ```{r}
-ggplot(data=df_q1_no_na %>% mutate(bin = ntile(avedrnk2, 4)),aes(x=sleptim1,colour=factor(bin))) + geom_histogram()
+df_q1<-brfss2013 %>% select(one_of(features_1)) %>% na.omit()
 ```
+
+How is the smoking habit spread ?
+
+```{r}
+df_q1 %>% group_by(smokday2) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count)*100)
+```
+One third of the interviewees do smoke.
+
+We can check the distribution of sleep time amongst the three smoke groups:
+
+
+```{r}
+ggplot(data=df_q1, aes(x=smokday2,y=sleptim1, fill=smokday2)) + geom_boxplot()
+```
+
+There is no obvious differences amongst the three groups.
+
+Now we can add the drinking habit and focus on the two smoking habit extremes (smoke everyday and not at all): 
+```{r}
+ggplot(data=df_q1 %>% filter(smokday2!='Some days'), aes(x=avedrnk2,y=sleptim1,color=smokday2)) + geom_point(alpha=0.5,position = 'jitter')
+```
+The plot lacks clarity, let's group the values per range for `sleptim1` and `avedrnk2` :
+
+```{r}
+df_q1_no_na_binned <- df_q1 %>% select(sleptim1,avedrnk2,smokday2)  %>% na.omit() %>% mutate(sleep_time_bin = ntile(sleptim1, 5), avedrnk_bin= ntile(avedrnk2,10))
+ggplot(data=df_q1_no_na_binned %>% filter(smokday2!='Some days'), aes(x=avedrnk_bin,y=sleep_time_bin,color=smokday2)) + geom_point(alpha=.5,position = 'jitter')
+
+```
+
+Now we can see that heavy smokers who do drink a lot tend to sleep less than the rest of the population.
+
 
 
 
@@ -134,22 +161,48 @@ features_2 <- c("veteran3","marital","poorhlth")
 
 NA.ratio(brfss2013,features_2)
 
-df_q2<-brfss2013 %>% select(one_of(features_2))
+```
 
-dim(df_q2)
-dim(df_q2 %>% na.omit())
+There is no significant proportion of NA is the three variables.
+
+```{r}
+df_q2<-brfss2013 %>% select(one_of(features_2))
 
 df_q2_no_na<-df_q2 %>% na.omit()
 
-str(df_q2_no_na)
+```
 
-p1<-ggplot(data=df_q2_no_na %>% filter(veteran3=='No'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
-p2<-ggplot(data=df_q2_no_na %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
+
+Let's see if veterans are more likely to be single :
+We first group the data per `veteran3` and `marital` status :
+```{r}
+groupy<- df_q2_no_na %>% group_by(veteran3,marital) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count))
+head(groupy)
+```
+To improve clarity, i rename the last marital category :
+
+
+```{r}
+df_q2_no_na<- df_q2_no_na %>% mutate(marital=ifelse(marital=='A member of an unmarried couple','Unmarried couple',as.character(marital)))
+```
+
+
+```{r}
+ggplot(groupy, aes(marital, ratio)) +  geom_bar(aes(fill = veteran3), position = "dodge", stat="identity") 
+```
+
+
+Veterans are more likely to be married and divorced. 
+
+Let's see how healthy are the veterans vs the others amongst each marital categories :
+
+
+```{r}
+p1<-ggplot(data=df_q2_no_na %>% filter(veteran3=='No'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot() +  xlab("Non veterans")+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+ theme(legend.position="none")
+p2<-ggplot(data=df_q2_no_na %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()  +  xlab("Veterans")+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+ theme(legend.position="none")
 
  layout <- matrix(c(1,2), nrow = 2, byrow = TRUE)
   multiplot(p1,p2,cols=2,layout=layout)
-
-
 ```
 
 
@@ -191,31 +244,10 @@ categorize_fruits <- function(cell){
 fruit_and_seatbelt <-brfss2013 %>% select(fruit1,seatbelt) %>% na.omit() %>% rowwise()  %>%mutate(fruit_group =categorize_fruits(fruit1))  %>%ungroup()
 groupy<- fruit_and_seatbelt %>% filter(fruit_group!="5_NA") %>% group_by(fruit_group,seatbelt) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count))
 
-
 ggplot(arrange(groupy,fruit_group), aes(seatbelt, ratio)) +  geom_bar(aes(fill = fruit_group), position = "dodge", stat="identity") 
 
-
 ```
 
+As i was susptecting, people eating more fruits are more likely to fasten their seatbelt, and people not eating fruits are more prone to drive without seatbelt.
 
-
-```{r}
-features_3 <- c("fruit1","seatbelt")
-
-NA.ratio(fruit_and_seatbelt,features_3)
-
-df_q3<-fruit_and_seatbelt %>% select(one_of(features_3))
-
-dim(df_q3)
-dim(df_q3 %>% na.omit())
-
-df_q3_no_na<-df_q3 %>% na.omit()
-
-str(df_q3_no_na)
-
-ggplot(data=df_q3_no_na, aes(x=seatbelt,y=fruit1)) + geom_boxplot()
-
-ggplot(data=df_q3_no_na, aes(x=fruit1)) + geom_histogram(binwidth = 5)
-
-```
 
