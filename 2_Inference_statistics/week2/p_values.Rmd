@@ -1,0 +1,52 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+```{r}
+library(dplyr)
+library(tidyr)
+```
+
+
+```{r}
+x_bar<-50
+s=2
+n1<-100
+n2<-10000
+
+h0<-49.5
+"h1>49.5"
+
+
+x<-seq(48,52,.01)
+
+df<-data.frame(x,dnorm(x,49.5,s/sqrt(n1)),dnorm(x,49.5,s/sqrt(n2)))
+colnames(df)<- c('x','n1','n2')
+
+
+ggplot(df,aes(x=x))+ geom_line(aes(y = n1, colour = "n1")) +  geom_line(aes(y = n2, colour = "n2")) +geom_vline(xintercept =50)
+
+1-pnorm(50,49.5,s/sqrt(n1))
+1-pnorm(50,49.5,s/sqrt(n2))
+
+
+```
+
+```{r}
+load("../../yrbs2015.rda")
+df<- x %>% select(num_range("q",1:8)) 
+head(df)
+```
+
+```{r}
+df<- df %>% mutate(sex=ifelse(q2=='1','F','M'))
+df$active<-as.numeric(x$q80) -1
+head(df)
+```
+
+```{r}
+mean(df$active,na.rm = T)
+```
+
