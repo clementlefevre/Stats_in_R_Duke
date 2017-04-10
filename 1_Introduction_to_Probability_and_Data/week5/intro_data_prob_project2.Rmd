@@ -7,7 +7,7 @@ output:
     theme: spacelab
 ---
 
-## Setup
+## Clement Lefevre 5th April 2017
 
 ### Load packages
 
@@ -15,6 +15,8 @@ output:
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(forcats)
+library(RColorBrewer)
 source('multiplot.r')
 ```
 
@@ -72,91 +74,235 @@ From those points we can infer that the results observed in this study can be **
 
 ## Part 2: Research questions
 
-**Research quesion 1:** Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?
+**Research question 1:** 
 
-**Research quesion 2:** Are veterans `veteran3` more likely to be single `marital` and more prone to be in poor health `poorhlth` ?
+Quantity of sleep is a factor of good health. Both tobacco use and alcohol consumption are not. I'd like to figure out whether smoking and drinking are somehow related to the length of sleep.
 
-**Research quesion 3:** Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?
+**Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?**
+
+
+
+**Research question 2:** 
+
+Veteran population in the US has kept stable since the 70's. But with both the afghan and iraqi campaigns, a new wave of veterans ermerged. Although the ratio of veterans in the overall pôpulation  decreased from 12.8%  in 1960 to 7% in 2010 (source : [ US census bureau](http://www.pbs.org/newshour/rundown/by-the-numbers-veterans-in-congress/)), the average age might have decreased.
+
+**Are veterans `veteran3` more likely to be single `marital` and more prone to be in poor health `poorhlth` ?**
+
+**Research question 3:** 
+
+Eating fruits and fastening the seatbelt are both part of a self-preservation behaviour. It might be interesting to see if those two variables are related.
+
+**Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?**
 
 
 * * *
 
 ## Part 3: Exploratory data analysis
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button (green button with orange arrow) above. Make sure that your code is visible
-in the project you submit. Delete this note when before you submit your work.
-
 **Research question 1:**
-Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?
+**Is there an association between the quantity of sleep `sleptim1`, tobacco use frequency `smokday2` and alcohol consumtion `avedrnk2` ?**
+
+
+I set a simple function to check the proportion of non-answered question for each of the selected variable :
 
 ```{r}
 
 # useful method to check the NA ratio in the features
 NA.ratio <- function(df,cols){
   df_selected <- df %>% select(one_of(cols)) 
-  print ('missing answer ratio : ')
-  (colMeans(is.na(df_selected))) %>% t()
-   
-}
-
-
-
-features_1 <- c("sleptim1","smokday2","avedrnk2")
-
-NA.ratio(brfss2013,features_1)
-
-df_q1<-brfss2013 %>% select(one_of(features_1))
-
-dim(df_q1)
-dim(df_q1 %>% na.omit())
-
-df_q1_no_na<-df_q1 %>% na.omit()
-
-str(df_q1_no_na)
-unique(df_q1_no_na$smokday2)
-
-ggplot(data=df_q1_no_na, aes(x=smokday2,y=sleptim1, fill=smokday2)) + geom_boxplot()
-ggplot(data=df_q1_no_na %>% filter(smokday2!='Some days'), aes(x=avedrnk2,y=sleptim1,color=smokday2)) + geom_point(alpha=0.5,position = 'jitter')
+  print ('missing answer ratio % : ')
+  colMeans(is.na(df_selected))*100
+   }
 
 ```
+
+We can check the ratio of NA for each features :
 ```{r}
-ggplot(data=df_q1_no_na %>% mutate(bin = ntile(avedrnk2, 4)),aes(x=sleptim1,colour=factor(bin))) + geom_histogram()
+features_1 <- c("sleptim1","smokday2","avedrnk2")
+NA.ratio(brfss2013,features_1)
+df_q1<-brfss2013 %>% select(one_of(features_1)) %>% na.omit()
+
+
 ```
+OK, it seems reasonable. We can proceed further.
+
+Let's look for outliers :
+
+```{r}
+summary(df_q1)
+```
+
+Now let's have a first glance of the distribution of each variable :
+
+
+
+```{r}
+group_sleeptime<- df_q1 %>% group_by(sleptim1) %>% summarise(total =n())
+group_smoke <- df_q1 %>% group_by(smokday2) %>% summarise(total=n())
+group_alcohol <- df_q1 %>% group_by(avedrnk2) %>% summarise(total=n())
+
+p1<- ggplot(data= group_sleeptime,aes(x=sleptim1,y=total))+ geom_bar(stat="identity", fill="#6899e6")
+p2<- ggplot(data= group_alcohol,aes(x=avedrnk2,y=total))+ geom_bar(stat="identity", fill="#420105")
+p3<- ggplot(data= group_smoke,aes(x=smokday2,y=total))+ geom_bar(stat="identity", fill="#730109")
+
+layout <- matrix(c(1,2,3), nrow = 3, byrow = TRUE)
+  multiplot(p1,p2,p3,cols=1,layout=layout)
+
+```
+
+OK, we can remove the outliers, by selecting values below the 99th quantile :
+
+```{r}
+df_q1<- df_q1 %>% filter(sleptim1<quantile(sleptim1,.995)) %>% filter(avedrnk2<quantile(avedrnk2,.995))
+summary(df_q1)
+
+```
+
+Let's plot again :
+```{r}
+group_sleeptime<- df_q1 %>% group_by(sleptim1) %>% summarise(total =n())
+group_smoke <- df_q1 %>% group_by(smokday2) %>% summarise(total=n())
+group_alcohol <- df_q1 %>% group_by(avedrnk2) %>% summarise(total=n())
+
+p1<- ggplot(data= group_sleeptime,aes(x=sleptim1,y=total))+ geom_bar(stat="identity", fill="#6899e6")
+p2<- ggplot(data= group_alcohol,aes(x=avedrnk2,y=total))+ geom_bar(stat="identity", fill="#420105")
+p3<- ggplot(data= group_smoke,aes(x=smokday2,y=total))+ geom_bar(stat="identity", fill="#730109")
+
+layout <- matrix(c(1,2,3), nrow = 3, byrow = TRUE)
+  multiplot(p1,p2,p3,cols=1,layout=layout)
+```
+
+
+
+OK, it's looks better.
+
+We can now first visualize the relationship between **sleep time** and **smoking** :
+```{r}
+
+group2<-df_q1 %>% group_by(sleptim1,smokday2) %>% summarise(total=n()) 
+group2
+ggplot(group2, aes(x = sleptim1)) + geom_bar(aes(weight=total, fill =smokday2), position = 'fill')  + scale_fill_manual(values = rev(brewer.pal(6, "Purples")))
+
+
+
+
+```
+
+
+The **smokers** tends to **sleep less** than the rest of population.
+
+
+
+How about sleeptime and alcohol consumption ?
+
+We can group the dataset per alcohol consumption level and compute the mean sleep time for each group.
+```{r}
+
+mean_overall_sleptim1= mean(df_q1$sleptim1)
+
+group_avedrnk2_mean_sleep <- df_q1 %>% group_by(avedrnk2) %>% summarise(mean_sleep = mean(sleptim1), pop_size = n())
+group_avedrnk2_mean_sleep
+
+```
+
+```{r}
+ggplot(group_avedrnk2_mean_sleep,aes(x=avedrnk2,y=mean_sleep,size=pop_size))+geom_point(colour="#740001")+geom_hline(yintercept = mean_overall_sleptim1,colour="blue", linetype="dashed")+annotate("text", x=5, y=mean_overall_sleptim1*1.003, label="overall mean sleep time", color = "blue")
+```
+
+
+It does look like the **more people drink**, the **less they sleep**.
+
+
+Now we can combine the three variables :
+
+```{r}
+group_avedrnk2_smoke8sleep <- df_q1 %>%group_by(avedrnk2,smokday2) %>% summarise(mean_sleep = mean(sleptim1), pop_size = n())
+ggplot(group_avedrnk2_smoke8sleep,aes(x=avedrnk2,y=mean_sleep,size=pop_size,fill=smokday2,color=smokday2))+geom_point(alpha=.9)
+```
+
+What we observe here is a significant gap between smoker and non smokers in term of sleep time, which get wider along the alcohol consumption.
 
 
 
 **Research question 2:**
 Are veterans `veteran3` more likely to be single `marital` and more prone to be in poor health `poorhlth` ?
 ```{r}
-
 features_2 <- c("veteran3","marital","poorhlth")
-
 NA.ratio(brfss2013,features_2)
-
-df_q2<-brfss2013 %>% select(one_of(features_2))
-
-dim(df_q2)
-dim(df_q2 %>% na.omit())
-
-df_q2_no_na<-df_q2 %>% na.omit()
-
-str(df_q2_no_na)
-
-p1<-ggplot(data=df_q2_no_na %>% filter(veteran3=='No'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
-p2<-ggplot(data=df_q2_no_na %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()
-
- layout <- matrix(c(1,2), nrow = 2, byrow = TRUE)
-  multiplot(p1,p2,cols=2,layout=layout)
-
+df_q2<-brfss2013 %>% select(one_of(features_2)) %>% na.omit()
+df_q2<- df_q2 %>% mutate( marital = fct_recode(marital, "unmarried couple" ="A member of an unmarried couple" ))
 
 ```
 
 
 
+
+Answer ratio is still good, we proceed further.
+
+```{r}
+ggplot(data=df_q2, aes(x=veteran3,y=poorhlth,fill=veteran3)) + geom_boxplot()+theme(axis.text.x=element_text(angle=45, hjust=1)) +  labs(title = "Poor health vs Veteran status")+ theme(legend.position="none")
+
+ggplot(data=df_q2,aes(x=poorhlth, fill=veteran3)) + geom_histogram(position='dodge')
+
+```
+
+As a first approach, veterans seem likely to be in poorer health than the rest of the population.
+
+
+this is confirmed with the following summary :
+```{r}
+df_q2 %>% group_by(veteran3) %>% summarise(mean(poorhlth), median(poorhlth),sd(poorhlth))
+
+```
+The median poorhealth for both group is 0. The overwhelming part of both group has no poor health.
+
+Let's focus on the rest of the population :
+
+```{r}
+df_q2_poorhealth<-df_q2 %>% filter(poorhlth>0)
+ggplot(data=df_q2_poorhealth, aes(x=veteran3,y=poorhlth,fill=veteran3)) + geom_boxplot()+theme(axis.text.x=element_text(angle=45, hjust=1)) +  labs(title = "Poor health vs Veteran status, with poorhealth>0")+ theme(legend.position="none")
+```
+
+Now it is clear that veterans are suffering worst health than the others.
+
+But how about the marital status ?
+
+
+```{r}
+p1<-ggplot(data=df_q2_poorhealth %>% filter(veteran3=='No'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()+theme(axis.text.x=element_text(angle=45, hjust=1)) +  labs(title = "Non Veterans with poorhealth>0")+ theme(legend.position="none")
+p2<-ggplot(data=df_q2_poorhealth %>% filter(veteran3=='Yes'), aes(x=marital,y=poorhlth,fill=marital)) + geom_boxplot()+theme(axis.text.x=element_text(angle=45, hjust=1))+  labs(title = "Veteranswith poorhealth>0") + theme(legend.position="none")
+
+ layout <- matrix(c(1,2), nrow = 2, byrow = TRUE)
+  multiplot(p1,p2,cols=2,layout=layout)
+```
+
+We see that married and divorced veterans tends to be more in poor health than the others.
+
+How about the veterans age factor ?
+
+
+
+```{r}
+df_q2_age_health_veterans <- brfss2013 %>% select(poorhlth,veteran3,X_ageg5yr) %>% na.omit() 
+
+groupy<-df_q2_age_health_veterans %>% group_by(veteran3,X_ageg5yr) %>% summarise(mean_poor_health=mean(poorhlth), count= n())
+
+ggplot(groupy,aes(x=X_ageg5yr, y=mean_poor_health, color=veteran3,size=count)) +geom_point()+theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+
+The result is quite clear : 
+
+- the oldest verteran age class (World war II) show a gap with their non-veteran counterpart.
+- the **Vietnam war veterans** are in a much worst shape than their non-veterans equivalents.
+- the Iraq and Afghan vets suffers poor health also, but not as strongly as the Vietnam veterans.
+
+
+
+
 **Research question 3:**
 
-Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?
+**Are people eating more fruit `fruit1` more likely to use their seatbelt `seatbelt` ?**
 
 In this case, the `fruit1` variable has to be a little bit reworked.
 Looking a the `fruit1` definition in the  2013 BRFSS Codebook report :
@@ -187,35 +333,30 @@ categorize_fruits <- function(cell){
   }
   }
   
-
-fruit_and_seatbelt <-brfss2013 %>% select(fruit1,seatbelt) %>% na.omit() %>% rowwise()  %>%mutate(fruit_group =categorize_fruits(fruit1))  %>%ungroup()
-groupy<- fruit_and_seatbelt %>% filter(fruit_group!="5_NA") %>% group_by(fruit_group,seatbelt) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count))
-
-
-ggplot(arrange(groupy,fruit_group), aes(seatbelt, ratio)) +  geom_bar(aes(fill = fruit_group), position = "dodge", stat="identity") 
-
-
 ```
 
+
+We can now apply this function to the dataset :
+```{r}
+fruit_and_seatbelt <-brfss2013 %>% select(fruit1,seatbelt) %>% na.omit() %>% rowwise()  %>%mutate(fruit_group =categorize_fruits(fruit1))  %>%ungroup()
+```
+
+
+And then group the data per fruit consumption category and seatbelt fasteners :
+
+```{r}
+groupy<- fruit_and_seatbelt %>% filter(fruit_group!="5_NA") %>% group_by(fruit_group,seatbelt) %>% summarise(count=n()) %>% mutate(ratio=count/sum(count))
+```
+
+Finally, we get a plot :
 
 
 ```{r}
-features_3 <- c("fruit1","seatbelt")
-
-NA.ratio(fruit_and_seatbelt,features_3)
-
-df_q3<-fruit_and_seatbelt %>% select(one_of(features_3))
-
-dim(df_q3)
-dim(df_q3 %>% na.omit())
-
-df_q3_no_na<-df_q3 %>% na.omit()
-
-str(df_q3_no_na)
-
-ggplot(data=df_q3_no_na, aes(x=seatbelt,y=fruit1)) + geom_boxplot()
-
-ggplot(data=df_q3_no_na, aes(x=fruit1)) + geom_histogram(binwidth = 5)
-
+ggplot(arrange(groupy,fruit_group), aes(seatbelt, ratio)) +  geom_bar(aes(fill = fruit_group), position = "dodge", stat="identity")+theme(axis.text.x=element_text(angle=45, hjust=1))+ labs(title = "Seatbelt use vs Fruit consumption frequency") 
 ```
+
+Interestingly enough, people eating **no fruits or seldomly tend to skip the use of a seatbelt more often** than the others. And the opposite is also true : **fruit eaters do fasten their buckles more systematically.**
+
+*I hope you did enjoy this short presentation.*
+
 
