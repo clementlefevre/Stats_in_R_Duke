@@ -7,7 +7,7 @@ output:
     theme: spacelab
 ---
 
-## Setup
+## Clement LEFEVRE 10th April 2017.
 
 ### Load packages
 
@@ -16,14 +16,12 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(statsr)
+library(ggcorrplot)
 
 ```
 
 ### Load data
 
-Make sure your data and R Markdown files are in the same directory. When loaded
-your data file will be called `gss`. Delete this note when before you submit 
-your work. 
 
 ```{r load-data}
 load("gss.Rdata")
@@ -47,7 +45,7 @@ This study has been done for 40 years.
 
 #### Case
 
-Thus cases here are **adults living the US**.
+Cases here are **adults living the US**.
 
 #### Scope of inference
 
@@ -57,7 +55,11 @@ For the elements exposed (random sampling, no treatment assigned to random subje
 * * *
 
 ## Part 2: Research question
+Based on this dataset, i'd like to evaluate the possible association between race and gun ownership, and its evolution over years.
 
+As a french, two factors in the US society seem very specifics to me : the racial discrimation and the attitude towards guns.
+
+This short analysis will try to evaluate whether both are somehow related.
 
 
 * * *
@@ -65,7 +67,7 @@ For the elements exposed (random sampling, no treatment assigned to random subje
 ## Part 3: Exploratory data analysis
 
 
-First, we can have a look at the distribution of interviews along the years :
+First, we can have a look at the distribution of interviewees's race over the years  :
 
 ```{r}
 group_per_year <- gss %>% group_by(year) %>% summarise(count=n())  
@@ -73,14 +75,98 @@ average_interviews_per_year <-mean(group_per_year $count)
 print (average_interviews_per_year)
 group_per_year <- gss %>% group_by(year,race) %>% summarise(total_interviews = n())
 ggplot(data=group_per_year,aes(x=year,y=total_interviews,fill=race)) + geom_bar(stat='identity')+geom_hline(yintercept = mean(average_interviews_per_year),colour="blue", linetype="dashed")+annotate("text", x=1980, y=average_interviews_per_year*1.1, label="average interviews", color = "blue")
+summary(group_per_year)
 ```
 
+
+Two elements to be noticed here :
+
+- the average yearly **number of interviewees** is relatively **stable** over year.
+- frequency of interviews switched from every year to every two years from 1993 onwards.
+- **race split** with the exception of 2 years (1982,1987 : black oversampling) is also **stable.**
+
+
+Now we can focus on race and gun ownership.
+We first create a dataframe with the variables of interest and some additional ones :
+
+- `year` : year of interview
+- `age` : Age of respondent
+- `sex` : Respondent's sex
+- `fear`: Afraid to walk at night in neighborhood
+- `owngun` : Have gun in home
+- `educ` :  Highest year of school completed
+- `coninc` : Total family income in constant dollars
+
 ```{r}
-weapon_df <- gss %>% select(year,fear,owngun,pistol,shotgun,rifle,sex,age,race,educ,wrkstat)
+weapon_df <- gss %>% select(year,fear,owngun,sex,age,race,educ,coninc)
+str(weapon_df)
+```
 
-groupy1<- weapon_df %>% na.omit() %>% group_by(year,owngun) %>% summarise(total=n()) %>% mutate(ratio=total/sum(total))
 
-ggplot(groupy1,aes(x=year,y=ratio)) + geom_bar(aes(fill = owngun), stat="identity")
+
+Let's see for both variable the non-answered ratio :
+```{r}
+as.data.frame(colMeans(is.na(weapon_df))*100)
+```
+
+From this table, we can say that even if 40% of interviewees did not provide an answer for `fear` and `owngun`, which, according to the sample size (57061 interviewees) is acceptable.
+
+```{r}
+dim(weapon_df)
+weapon_df<- weapon_df %>% na.omit()
+nrow(weapon_df)
+weapon_df<- weapon_df %>% filter(owngun!='Refused')
+dim(weapon_df)
+```
+
+
+Now we can quickly see the Pearson correlation between those variable.
+First, we convert the categorical variable into numerics values :
+
+
+```{r}
+weapon_df<- weapon_df %>% mutate(fear_num=ifelse(fear=='Yes',1,0))
+weapon_df<- weapon_df %>% mutate(owngun_num=ifelse(owngun=='Yes',1,0))
+weapon_df<- weapon_df %>% mutate(sex_num=ifelse(sex=='Male',1,0))
+weapon_df<- weapon_df %>% mutate(race_num=ifelse(race=='Black',0,ifelse(race=='White',2,1)))
+                                 
+```
+
+
+Let's plot a correlogramm :
+
+```{r}
+
+weapon_df_numeric<- weapon_df %>% select(-c(fear,sex,race,owngun))
+
+corr <- round(cor(weapon_df_numeric),3)
+ggcorrplot(corr, hc.order = TRUE, 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 3, 
+           method="circle", 
+           colors = c("tomato2", "white", "springgreen3"), 
+           title="Correlogram of Selected variables", 
+           ggtheme=theme_bw)
+```
+
+
+Well, some elements here :
+
+- education level is strongly correlated to the level of incomes.
+- the fear factor is correlated to gender.
+- for gun ownership, the most correlated variables are in order : race(white are more likely ot own guns than others and blacks), sex (men are more likely to own guns), income (the more income, the more frequent is gunownership).
+
+
+
+```{r}
+
+
+groupy1<- weapon_df  %>% group_by(year,owngun,race) %>% summarise(total=n()) %>% mutate(ratio=total/sum(total))
+
+#ggplot(groupy1,aes(x=year,y=ratio,col=race)) + geom_bar(aes(fill = owngun), stat="identity")
+
+ggplot(groupy1 %>% filter(owngun=='Yes'),aes(x=year,y=ratio,col=race)) + geom_line()
 
 ```
 
