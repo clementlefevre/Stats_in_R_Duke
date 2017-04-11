@@ -17,6 +17,10 @@ library(dplyr)
 library(tidyr)
 library(statsr)
 library(ggcorrplot)
+library(gridExtra)
+library(grid)
+library(RColorBrewer)
+
 source('multiplot.r')
 
 ```
@@ -110,14 +114,16 @@ Let's see for both variable the non-answered ratio :
 as.data.frame(colMeans(is.na(weapon_df))*100)
 ```
 
-From this table, we can say that even if 40% of interviewees did not provide an answer for `fear` and `owngun`, which, according to the sample size (57061 interviewees) is acceptable.
+From this table, we can say that even if 40% of interviewees did not provide an answer for `fear` and `owngun`, it seems, according to the sample size (57061 interviewees), somehow acceptable.
+
+We can now remove the N/A from the dataframe :
 
 ```{r}
-dim(weapon_df)
+nrow(weapon_df)
 weapon_df<- weapon_df %>% na.omit()
 nrow(weapon_df)
 
-dim(weapon_df)
+
 ```
 
 
@@ -155,9 +161,9 @@ ggcorrplot(corr, hc.order = TRUE,
 
 Well, some elements here :
 
-- education level is strongly correlated to the level of incomes.
-- the fear factor is correlated to gender.
-- for gun ownership, the most correlated variables are in order : race(white are more likely ot own guns than others and blacks $\rho$ = 0.4), sex (men are more likely to own guns), income (the more income, the more frequent is gunownership).
+- **education level** is strongly correlated to the **level of incomes**.
+- the **fear** factor is correlated to **gender.** : mens fear less walking in street at night.
+- for **gun ownership**, the most correlated variables are in order : **race** (white are more likely ot own guns than others and blacks, $\rho$ = 0.15), **sex** (men are more likely to own guns), **income** (the more income, the more frequent is gunownership).
 
 
 
@@ -170,28 +176,130 @@ groupy_gun_race_female<- weapon_df  %>% filter(sex=='Female')  %>% group_by(year
 
 ```
 
+
+
 ```{r}
-p0<-ggplot(groupy_gun_race_male,aes(x=year,y=ratio,col=race)) + geom_line()
+p0<-ggplot(groupy_gun_race_male,aes(x=year,y=ratio*100,col=race)) + geom_line() + theme(axis.title.x=element_blank(),axis.title.y=element_blank()) +labs(title = "Male gun ownership %") +scale_y_continuous(limits = c(0, 60))
 
-p1<-ggplot(groupy_gun_race_female,aes(x=year,y=ratio,col=race)) + geom_line()
+p1<-ggplot(groupy_gun_race_female,aes(x=year,y=ratio*100,col=race)) + geom_line() + theme(axis.title.x=element_blank(),axis.title.y=element_blank()) +labs(title = "Female gun ownership %")+scale_y_continuous(limits = c(0, 60))
 
-p2<-ggplot(groupy_gun_race_male,aes(x=year,y=median_age,fill=race,color=race))+geom_line(alpha=.9)
-p3<-ggplot(groupy_gun_race_female,aes(x=year,y=median_age,fill=race,color=race))+geom_line(alpha=.9)
+p2<-ggplot(groupy_gun_race_male,aes(x=year,y=median_age,fill=race,color=race))+geom_line()+ theme(axis.title.x=element_blank(),axis.title.y=element_blank()) +labs(title = "Male gun owners median age")+scale_y_continuous(limits = c(20, 65))
 
-
-
+p3<-ggplot(groupy_gun_race_female,aes(x=year,y=median_age,fill=race,color=race))+geom_line() + theme(axis.title.x=element_blank(),axis.title.y=element_blank()) +labs(title = "Female  gun owners median age")+scale_y_continuous(limits = c(20, 65))
 
 
-  multiplot(p0,p1,p2,p3,cols=2)
-  
+
+grid_arrange_shared_legend <- function(...) {
+    plots <- list(...)
+    g <- ggplotGrob(plots[[1]] + theme(legend.position="bottom"))$grobs
+    legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+    lheight <- sum(legend$height)
+    grid.arrange(
+        do.call(arrangeGrob, lapply(plots, function(x)
+            x + theme(legend.position="none"))),
+        legend,
+        ncol = 1,
+        heights = unit.c(unit(1, "npc") - lheight, lheight))
+}
+
+grid_arrange_shared_legend(p0, p2, p1, p3)
   
 ```
 
+
+
+
+* * *
+
+## Part 4: Inference
+
+
+Before we start testing the independance of gun ownership with race, we can quickly check whether overall  gun ownership did significantly changed over a period of 40 years.
+
+We can proceed by comparing the gun ownership ration in 1972 with 2012 with the following hypothesis :
+$H_{0}:ownership_{1972}-ownership_{2012}=0$
+
+$H_{A}:ownership_{1972}- ownership_{2012}\ne 0$
+
+[ownership fall](https://www.washingtonpost.com/news/wonk/wp/2016/06/29/american-gun-ownership-is-now-at-a-30-year-low/?utm_term=.f4605793b86f)
+We can compute the corresponding proportions :
+
 ```{r}
-weapon_df %>% group_by(year,sex) %>% summarise(total=n())
-head(weapon_df)
+
+
+ownership1973 <- weapon_df %>% filter(year==1973) %>%group_by(owngun)  %>% summarise(count=n())%>% mutate(ratio=count/sum(count), total = sum(count)) %>% filter(owngun=='Yes')
+ownership1973
+
+ownership2012 <- weapon_df %>% filter(year==2012) %>%group_by(owngun)  %>% summarise(count=n())%>% mutate(ratio=count/sum(count), total = sum(count))%>% filter(owngun=='Yes')
+ownership2012
 
 ```
+
+
+Now we can compute the pooled proportion of gun owners :
+
+```{r}
+p_pool <- (661+390)/(1372+1146)
+p_pool
+```
+
+Let's check the success failure conditions :
+
+$n_{1973} \times  \hat{p}_{pool} \ge 10$
+
+$(1-n_{1973}) \times  \hat{p}_{pool} \ge 10$
+
+$n_{2012} \times  \hat{p}_{pool} \ge 10$
+
+$(1-n_{2012}) \times  \hat{p}_{pool} \ge 10$
+
+```{r}
+p_pool * 1372
+(1-p_pool)*1372
+p_pool * 1146
+(1-p_pool)*1146
+```
+
+So far, so good. We can compute the standard estimate SE :
+
+$SE = \sqrt{\frac{\hat{p}_{pool}(1-\hat{p}_{pool})}{n_{1973}}+ \frac{\hat{p}_{pool}(1-\hat{p}_{pool})}{n_{2012}}}$
+
+```{r}
+SE<- sqrt(p_pool*(1-p_pool)/1372 + p_pool*(1-p_pool)/1146)
+SE
+```
+
+Now we can compute the p_value :
+
+```{r}
+Z<- (0.3403141-0.4817784)/SE
+Z
+2*pnorm(Z)
+
+```
+```{r}
+ggplot(data.frame(x = c(-8, 8)), aes(x)) +
+  stat_function(fun = dnorm, args = list(mean = 0, sd = SE)) + geom_vline(xintercept = Z,,col='blue',linetype="dashed")+geom_vline(xintercept = -Z,col='blue',linetype="dashed")  +annotate("text", x=-Z*.95, y=10, label="Z", color = "blue")  +annotate("text", x=Z*.95, y=10, label="-Z", color = "blue")
+```
+
+
+From the Z value, it is obvious that the probabily that the gun ownership rate  in 2012 is different than the one in 1973 occurs by chance is almost zero. This has been confirmed by the chart above.
+
+
+Finally, we can test the independance of the gun ownership rate from the race :
+
+### Hyptheses
+
+$H_{0}:$ Race and gun ownership are independent.
+
+$H_{A}:$ Race and gun ownership are dependent.
+
+
+
+### Chi-square test of independance 
+
+I'll use the R function *chisq.test* instead of manually computing it :
+
 ```{r}
 gun_race <-weapon_df %>% filter(year==2012)  %>% filter(owngun=='Yes' | owngun=='No',owngun!='Refused')
 
@@ -200,16 +308,11 @@ gun_race <- table(gun_race$owngun,gun_race$race)
 gun_race
 chisq.test(gun_race)
 ```
-```{r}
-gun_race <-weapon_df %>% filter(year==1973)  %>% filter(owngun=='Yes' | owngun=='No',owngun!='Refused')
 
-gun_race <- droplevels(gun_race)
-gun_race <- table(gun_race$owngun,gun_race$race)
-gun_race
-chi2<- chisq.test(gun_race)
+For the year 2012, we reject the $H_{0}$  : Race and gun ownership are not independant.
 
-chi2$p.value
-```
+What could be interesting is to see the evolution of this p_value over the years :
+
 We can write a generic function to compute the corresponding p.value :
 
 ```{r}
@@ -222,7 +325,6 @@ gun_race <- table(gun_race$owngun,gun_race$race)
 chi2<- chisq.test(gun_race)
 
 return(chi2$p.value)
-  
 }
 ```
 
@@ -244,22 +346,20 @@ for (year in year_asked){
 
  
 df_pvalues<-as.data.frame(x) %>% gather() 
-colnames(df_pvalues)
+
 colnames(df_pvalues)<-c('yearX','pvalue')
 df_pvalues<- df_pvalues %>% separate(yearX,into = c("X", "year"), sep = "X")
-head(df_pvalues)
+
 df_pvalues$log_pvalue<-log(df_pvalues$pvalue)
 
-str(df_pvalues)
-ggplot(data=df_pvalues,aes(x=as.numeric(year),y=log_pvalue)) + geom_point()+stat_summary(fun.data=mean_cl_normal) + 
+#df_pvalues<- df_pvalues %>% filter(pvalue<.001)
+
+plot(df_pvalues$year,df_pvalues$pvalue)
+ggplot(data=df_pvalues,aes(x=as.numeric(year),y=log_pvalue)) + geom_point() + 
   geom_smooth(method='lm')
 
 ```
 
-
-* * *
-
-## Part 4: Inference
 
 Chi Square independance test :
 
