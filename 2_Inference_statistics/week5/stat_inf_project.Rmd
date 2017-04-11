@@ -17,6 +17,7 @@ library(dplyr)
 library(tidyr)
 library(statsr)
 library(ggcorrplot)
+source('multiplot.r')
 
 ```
 
@@ -115,7 +116,7 @@ From this table, we can say that even if 40% of interviewees did not provide an 
 dim(weapon_df)
 weapon_df<- weapon_df %>% na.omit()
 nrow(weapon_df)
-weapon_df<- weapon_df %>% filter(owngun!='Refused')
+
 dim(weapon_df)
 ```
 
@@ -126,7 +127,8 @@ First, we convert the categorical variable into numerics values :
 
 ```{r}
 weapon_df<- weapon_df %>% mutate(fear_num=ifelse(fear=='Yes',1,0))
-weapon_df<- weapon_df %>% mutate(owngun_num=ifelse(owngun=='Yes',1,0))
+weapon_df<- weapon_df %>% mutate(owngun_num=ifelse(owngun=='Yes',2,ifelse(owngun=='Refused',1,0)))
+
 weapon_df<- weapon_df %>% mutate(sex_num=ifelse(sex=='Male',1,0))
 weapon_df<- weapon_df %>% mutate(race_num=ifelse(race=='Black',0,ifelse(race=='White',2,1)))
                                  
@@ -155,19 +157,34 @@ Well, some elements here :
 
 - education level is strongly correlated to the level of incomes.
 - the fear factor is correlated to gender.
-- for gun ownership, the most correlated variables are in order : race(white are more likely ot own guns than others and blacks), sex (men are more likely to own guns), income (the more income, the more frequent is gunownership).
+- for gun ownership, the most correlated variables are in order : race(white are more likely ot own guns than others and blacks $\rho$ = 0.4), sex (men are more likely to own guns), income (the more income, the more frequent is gunownership).
 
 
 
+Now we can prepare a dataframe with gun ownership grouped by year and race : 
 ```{r}
 
+groupy_gun_race_male<- weapon_df %>% filter(sex=='Male') %>% group_by(year,race,owngun) %>% summarise(total=n(), median_age=median(age)) %>% mutate(ratio=total/sum(total)) %>% filter(owngun=='Yes')
 
-groupy1<- weapon_df  %>% group_by(year,owngun,race) %>% summarise(total=n()) %>% mutate(ratio=total/sum(total))
+groupy_gun_race_female<- weapon_df  %>% filter(sex=='Female')  %>% group_by(year,race,owngun) %>% summarise(total=n(), median_age=median(age)) %>% mutate(ratio=total/sum(total)) %>% filter(owngun=='Yes')
 
-#ggplot(groupy1,aes(x=year,y=ratio,col=race)) + geom_bar(aes(fill = owngun), stat="identity")
+```
 
-ggplot(groupy1 %>% filter(owngun=='Yes'),aes(x=year,y=ratio,col=race)) + geom_line()
+```{r}
+p0<-ggplot(groupy_gun_race_male,aes(x=year,y=ratio,col=race)) + geom_line()
 
+p1<-ggplot(groupy_gun_race_female,aes(x=year,y=ratio,col=race)) + geom_line()
+
+p2<-ggplot(groupy_gun_race_male,aes(x=year,y=median_age,fill=race,color=race))+geom_line(alpha=.9)
+p3<-ggplot(groupy_gun_race_female,aes(x=year,y=median_age,fill=race,color=race))+geom_line(alpha=.9)
+
+
+
+
+
+  multiplot(p0,p1,p2,p3,cols=2)
+  
+  
 ```
 
 ```{r}
