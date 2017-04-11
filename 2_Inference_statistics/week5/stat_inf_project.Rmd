@@ -14,7 +14,9 @@ output:
 ```{r load-packages, message = FALSE}
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(statsr)
+
 ```
 
 ### Load data
@@ -33,6 +35,24 @@ load("gss.Rdata")
 
 ## Part 1: Data
 
+This dataset is a simplified sample of the official General Social Survey (GSS).
+The [GSS](http://publicdata.norc.org:41000/gss/documents//BOOK/GSS_Codebook_AppendixA.pdf) is a survey focusing on US society, gathering informations related to **societal behaviors and attitudes**.
+The data were gathered via interviews by US households.
+
+#### Sampling methodology
+
+**Random sampling** is implemented via strata : geographical area, sex, race, etc.
+This study has been done for 40 years.
+
+
+#### Case
+
+Thus cases here are **adults living the US**.
+
+#### Scope of inference
+
+For the elements exposed (random sampling, no treatment assigned to random subjects), we can state that this is an **observational** study, from which we can extract **assocations** but no **causality** between the explanatory variables (demographics and social) and  the response (opinion, attitude). 
+
 
 * * *
 
@@ -43,6 +63,18 @@ load("gss.Rdata")
 * * *
 
 ## Part 3: Exploratory data analysis
+
+
+First, we can have a look at the distribution of interviews along the years :
+
+```{r}
+group_per_year <- gss %>% group_by(year) %>% summarise(count=n())  
+average_interviews_per_year <-mean(group_per_year $count)
+print (average_interviews_per_year)
+group_per_year <- gss %>% group_by(year,race) %>% summarise(total_interviews = n())
+ggplot(data=group_per_year,aes(x=year,y=total_interviews,fill=race)) + geom_bar(stat='identity')+geom_hline(yintercept = mean(average_interviews_per_year),colour="blue", linetype="dashed")+annotate("text", x=1980, y=average_interviews_per_year*1.1, label="average interviews", color = "blue")
+```
+
 ```{r}
 weapon_df <- gss %>% select(year,fear,owngun,pistol,shotgun,rifle,sex,age,race,educ,wrkstat)
 
@@ -50,18 +82,85 @@ groupy1<- weapon_df %>% na.omit() %>% group_by(year,owngun) %>% summarise(total=
 
 ggplot(groupy1,aes(x=year,y=ratio)) + geom_bar(aes(fill = owngun), stat="identity")
 
-
 ```
 
 ```{r}
 weapon_df %>% group_by(year,sex) %>% summarise(total=n())
 head(weapon_df)
+
 ```
+```{r}
+gun_race <-weapon_df %>% filter(year==2012)  %>% filter(owngun=='Yes' | owngun=='No',owngun!='Refused')
+
+gun_race <- droplevels(gun_race)
+gun_race <- table(gun_race$owngun,gun_race$race)
+gun_race
+chisq.test(gun_race)
+```
+```{r}
+gun_race <-weapon_df %>% filter(year==1973)  %>% filter(owngun=='Yes' | owngun=='No',owngun!='Refused')
+
+gun_race <- droplevels(gun_race)
+gun_race <- table(gun_race$owngun,gun_race$race)
+gun_race
+chi2<- chisq.test(gun_race)
+
+chi2$p.value
+```
+We can write a generic function to compute the corresponding p.value :
+
+```{r}
+chi2_independance_pvalue<- function(df,year_){
+gun_race <-df %>% filter(year==year_)  %>% filter(owngun=='Yes' | owngun=='No')
+
+gun_race <- droplevels(gun_race)
+gun_race <- table(gun_race$owngun,gun_race$race)
+
+chi2<- chisq.test(gun_race)
+
+return(chi2$p.value)
+  
+}
+```
+
+
+Let's compute the evolution of this p.value along the years :
+
+```{r}
+gun_asked<-gss %>% group_by(year,owngun) %>% filter(!is.na(owngun)) 
+year_asked<-unique(gun_asked$year)
+```
+
+```{r}
+
+x<-list()
+for (year in year_asked){
+ chi2 <-  chi2_independance_pvalue(weapon_df,year)
+ x[as.character(year)]<-list('pvalue'=chi2)
+}
+
+ 
+df_pvalues<-as.data.frame(x) %>% gather() 
+colnames(df_pvalues)
+colnames(df_pvalues)<-c('yearX','pvalue')
+df_pvalues<- df_pvalues %>% separate(yearX,into = c("X", "year"), sep = "X")
+head(df_pvalues)
+df_pvalues$log_pvalue<-log(df_pvalues$pvalue)
+
+str(df_pvalues)
+ggplot(data=df_pvalues,aes(x=as.numeric(year),y=log_pvalue)) + geom_point()+stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm')
+
+```
+
 
 * * *
 
 ## Part 4: Inference
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button (green button with orange arrow) above. Make sure that your code is visible
-in the project you submit. Delete this note when before you submit your work.
+Chi Square independance test :
+
+```{r}
+
+```
+
