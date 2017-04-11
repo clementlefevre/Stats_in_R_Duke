@@ -103,7 +103,7 @@ We first create a dataframe with the variables of interest and some additional o
 - `coninc` : Total family income in constant dollars
 
 ```{r}
-weapon_df <- gss %>% select(year,fear,owngun,sex,age,race,educ,coninc)
+weapon_df <- gss %>% select(year,fear,owngun,sex,age,race,educ,coninc,partyid)
 str(weapon_df)
 ```
 
@@ -137,7 +137,7 @@ weapon_df<- weapon_df %>% mutate(owngun_num=ifelse(owngun=='Yes',2,ifelse(owngun
 
 weapon_df<- weapon_df %>% mutate(sex_num=ifelse(sex=='Male',1,0))
 weapon_df<- weapon_df %>% mutate(race_num=ifelse(race=='Black',0,ifelse(race=='White',2,1)))
-                                 
+ weapon_df<- weapon_df %>% mutate(partyid_num=as.numeric(partyid))                                
 ```
 
 
@@ -145,8 +145,9 @@ Let's plot a correlogramm :
 
 ```{r}
 
-weapon_df_numeric<- weapon_df %>% select(-c(fear,sex,race,owngun))
+weapon_df_numeric<- weapon_df %>% select(-c(fear,sex,race,owngun,partyid))
 
+str(weapon_df_numeric)
 corr <- round(cor(weapon_df_numeric),3)
 ggcorrplot(corr, hc.order = TRUE, 
            type = "lower", 
@@ -164,6 +165,7 @@ Well, some elements here :
 - **education level** is strongly correlated to the **level of incomes**.
 - the **fear** factor is correlated to **gender.** : mens fear less walking in street at night.
 - for **gun ownership**, the most correlated variables are in order : **race** (white are more likely ot own guns than others and blacks, $\rho$ = 0.15), **sex** (men are more likely to own guns), **income** (the more income, the more frequent is gunownership).
+- very surprisingly to me, the party affiliation is almost not correlated with gun ownership.
 
 
 
@@ -204,6 +206,15 @@ grid_arrange_shared_legend <- function(...) {
 
 grid_arrange_shared_legend(p0, p2, p1, p3)
   
+```
+
+```{r}
+
+p0<- ggplot(weapon_df%>% filter(year==1973)  %>% filter(coninc<quantile(coninc,.995)), aes(x=owngun, y=coninc,fill=owngun)) + geom_boxplot()+scale_y_continuous(limits = c(0, 90000))+ theme(legend.position="none") +labs(title= 'Income distribution - 1973')
+
+p1<- ggplot(weapon_df%>% filter(year==2012)  %>% filter(coninc<quantile(coninc,.995)), aes(x=owngun, y=coninc,fill=owngun)) + geom_boxplot()+scale_y_continuous(limits = c(0, 90000))+ theme(legend.position="none")+labs(title = 'Income distribution - 2012')
+
+multiplot(p0, p1,cols = 2)
 ```
 
 
