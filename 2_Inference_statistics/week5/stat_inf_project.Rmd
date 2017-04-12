@@ -19,7 +19,6 @@ library(statsr)
 library(ggcorrplot)
 library(gridExtra)
 library(grid)
-library(RColorBrewer)
 
 source('multiplot.r')
 
@@ -39,8 +38,13 @@ load("gss.Rdata")
 ## Part 1: Data
 
 This dataset is a simplified sample of the official General Social Survey (GSS).
-The [GSS](http://publicdata.norc.org:41000/gss/documents//BOOK/GSS_Codebook_AppendixA.pdf) is a survey focusing on US society, gathering informations related to **societal behaviors and attitudes**.
-The data were gathered via interviews by US households.
+
+The [**GSS**](http://gss.norc.org/documents/codebook/GSS_Codebook_intro.pdf) is a survey focusing on US society, gathering informations related to **societal behaviors and attitudes**.
+
+According to Wikpedia, "*It is one of the most influential studies in the social sciences, and is frequently referenced in leading publications, including The New York Times, The Wall Street Journal, and the Associated Press.*"
+It has been used in 25,000 scholarly publications and every year by 400.000 students.
+
+The data were gathered via face-to-face interviews by US households, for an average 90 minutes.
 
 #### Sampling methodology
 
@@ -60,9 +64,9 @@ For the elements exposed (random sampling, no treatment assigned to random subje
 * * *
 
 ## Part 2: Research question
-Based on this dataset, i'd like to evaluate the possible association between race and gun ownership, and its evolution over years.
+Based on this dataset, i'd like to evaluate the possible **association** between **race** and **gun ownership**, and its **evolution** over years.
 
-As a french, two factors in the US society seem very specifics to me : the racial discrimation and the attitude towards guns.
+As a french, two factors in the US society seem very specifics to me : racial discrimation and attitude towards guns.
 
 This short analysis will try to evaluate whether both are somehow related.
 
@@ -77,14 +81,14 @@ First, we can have a look at the distribution of interviewees's race over the ye
 ```{r}
 group_per_year <- gss %>% group_by(year) %>% summarise(count=n())  
 average_interviews_per_year <-mean(group_per_year $count)
-print (average_interviews_per_year)
+
 group_per_year <- gss %>% group_by(year,race) %>% summarise(total_interviews = n())
 ggplot(data=group_per_year,aes(x=year,y=total_interviews,fill=race)) + geom_bar(stat='identity')+geom_hline(yintercept = mean(average_interviews_per_year),colour="blue", linetype="dashed")+annotate("text", x=1980, y=average_interviews_per_year*1.1, label="average interviews", color = "blue")
 summary(group_per_year)
 ```
 
 
-Two elements to be noticed here :
+Three elements to be noticed here :
 
 - the average yearly **number of interviewees** is relatively **stable** over year.
 - frequency of interviews switched from every year to every two years from 1993 onwards.
@@ -103,7 +107,7 @@ We first create a dataframe with the variables of interest and some additional o
 - `coninc` : Total family income in constant dollars
 
 ```{r}
-weapon_df <- gss %>% select(year,fear,owngun,sex,age,race,educ,coninc,partyid)
+weapon_df <- gss %>% select(year,fear,owngun,sex,age,race,educ,coninc)
 str(weapon_df)
 ```
 
@@ -127,8 +131,8 @@ nrow(weapon_df)
 ```
 
 
-Now we can quickly see the Pearson correlation between those variable.
-First, we convert the categorical variable into numerics values :
+Now we can quickly see the Pearson correlation between those variables.
+First, we convert categorical variables into numerics values :
 
 
 ```{r}
@@ -137,7 +141,7 @@ weapon_df<- weapon_df %>% mutate(owngun_num=ifelse(owngun=='Yes',2,ifelse(owngun
 
 weapon_df<- weapon_df %>% mutate(sex_num=ifelse(sex=='Male',1,0))
 weapon_df<- weapon_df %>% mutate(race_num=ifelse(race=='Black',0,ifelse(race=='White',2,1)))
- weapon_df<- weapon_df %>% mutate(partyid_num=as.numeric(partyid))                                
+                            
 ```
 
 
@@ -145,9 +149,8 @@ Let's plot a correlogramm :
 
 ```{r}
 
-weapon_df_numeric<- weapon_df %>% select(-c(fear,sex,race,owngun,partyid))
+weapon_df_numeric<- weapon_df %>% select(-c(fear,sex,race,owngun))
 
-str(weapon_df_numeric)
 corr <- round(cor(weapon_df_numeric),3)
 ggcorrplot(corr, hc.order = TRUE, 
            type = "lower", 
@@ -162,14 +165,16 @@ ggcorrplot(corr, hc.order = TRUE,
 
 Well, some elements here :
 
-- **education level** is strongly correlated to the **level of incomes**.
-- the **fear** factor is correlated to **gender.** : mens fear less walking in street at night.
-- for **gun ownership**, the most correlated variables are in order : **race** (white are more likely ot own guns than others and blacks, $\rho$ = 0.15), **sex** (men are more likely to own guns), **income** (the more income, the more frequent is gunownership).
-- very surprisingly to me, the party affiliation is almost not correlated with gun ownership.
+- **education level** is strongly correlated to the **level of incomes**.(*not relevant for our question*)
+- the **fear** factor is correlated to **gender** : men fear less walking in street at night.
+- for **gun ownership**, the most correlated variables are in order : 
+    1. **race** (whites are more likely to own guns than Others and blacks, $\rho$ = 0.15),
+    2. **sex** (men are more likely to own guns),
+    3. **income** (the more income, the more frequent is gunownership).
+  
 
 
-
-Now we can prepare a dataframe with gun ownership grouped by year and race : 
+Now we can prepare a dataframe with gun ownership grouped by year and race for both women and men : 
 ```{r}
 
 groupy_gun_race_male<- weapon_df %>% filter(sex=='Male') %>% group_by(year,race,owngun) %>% summarise(total=n(), median_age=median(age)) %>% mutate(ratio=total/sum(total)) %>% filter(owngun=='Yes')
@@ -178,7 +183,7 @@ groupy_gun_race_female<- weapon_df  %>% filter(sex=='Female')  %>% group_by(year
 
 ```
 
-
+And we plot it :
 
 ```{r}
 p0<-ggplot(groupy_gun_race_male,aes(x=year,y=ratio*100,col=race)) + geom_line() + theme(axis.title.x=element_blank(),axis.title.y=element_blank()) +labs(title = "Male gun ownership %") +scale_y_continuous(limits = c(0, 60))
@@ -191,22 +196,20 @@ p3<-ggplot(groupy_gun_race_female,aes(x=year,y=median_age,fill=race,color=race))
 
 
 
-grid_arrange_shared_legend <- function(...) {
-    plots <- list(...)
-    g <- ggplotGrob(plots[[1]] + theme(legend.position="bottom"))$grobs
-    legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
-    lheight <- sum(legend$height)
-    grid.arrange(
-        do.call(arrangeGrob, lapply(plots, function(x)
-            x + theme(legend.position="none"))),
-        legend,
-        ncol = 1,
-        heights = unit.c(unit(1, "npc") - lheight, lheight))
-}
-
 grid_arrange_shared_legend(p0, p2, p1, p3)
   
 ```
+
+
+A few comments :
+
+- Overall gun ownership decreased over the year.
+- Overall median age increased.
+- Men of all races have higher gun ownership rate than women.
+- The gap between whites and blacks gun ownership increased.
+  
+  
+Out of the current scope, i'd like to see the incomes level relationship with gun ownership :
 
 ```{r}
 
@@ -218,6 +221,7 @@ multiplot(p0, p1,cols = 2)
 ```
 
 
+We can clearly observe that during a 40 years time period, the gun ownership is still related to the income level. Rich households are more prone to won a gun, but in 2012, gun owners are less wealthy.
 
 
 * * *
@@ -225,19 +229,18 @@ multiplot(p0, p1,cols = 2)
 ## Part 4: Inference
 
 
-Before we start testing the independance of gun ownership with race, we can quickly check whether overall  gun ownership did significantly changed over a period of 40 years.
+Before we start testing the independance of gun ownership with race, we can as a starter check whether overall gun ownership did significantly changed over a period of 40 years.
 
-We can proceed by comparing the gun ownership ration in 1972 with 2012 with the following hypothesis :
+We can proceed by comparing the gun ownership ration in 1972 with 2012 with the following hypotheses :
+
 $H_{0}:ownership_{1972}-ownership_{2012}=0$
 
 $H_{A}:ownership_{1972}- ownership_{2012}\ne 0$
 
-[ownership fall](https://www.washingtonpost.com/news/wonk/wp/2016/06/29/american-gun-ownership-is-now-at-a-30-year-low/?utm_term=.f4605793b86f)
+
 We can compute the corresponding proportions :
 
 ```{r}
-
-
 ownership1973 <- weapon_df %>% filter(year==1973) %>%group_by(owngun)  %>% summarise(count=n())%>% mutate(ratio=count/sum(count), total = sum(count)) %>% filter(owngun=='Yes')
 ownership1973
 
@@ -296,10 +299,12 @@ ggplot(data.frame(x = c(-8, 8)), aes(x)) +
 
 From the Z value, it is obvious that the probabily that the gun ownership rate  in 2012 is different than the one in 1973 occurs by chance is almost zero. This has been confirmed by the chart above.
 
+This conclusion is confirmed by the following article from the Wapo : [**"ownership fall"**](https://www.washingtonpost.com/news/wonk/wp/2016/06/29/american-gun-ownership-is-now-at-a-30-year-low/?utm_term=.f4605793b86f)
+
 
 Finally, we can test the independance of the gun ownership rate from the race :
 
-### Hyptheses
+### Hypotheses
 
 $H_{0}:$ Race and gun ownership are independent.
 
@@ -309,7 +314,25 @@ $H_{A}:$ Race and gun ownership are dependent.
 
 ### Chi-square test of independance 
 
-I'll use the R function *chisq.test* instead of manually computing it :
+We want to test the independance of gun ownership ('Yes','No') with race ('White', 'Black','Other').
+*Nota Bene :* I removed the "Refusal" category from the sample, as it does not provide evidence of the ownership or not.
+
+
+We are in the case of two categorical variables, with at least 1 with more than 2 levels
+
+#### Conditions for the chi-square test:
+1. Independence: Sampled observations must be independent. 	
+
+    ‣ random sample/assignment	&#10004; *Checked*
+
+    ‣ if sampling without replacement, n < 10% of population	&#10004; *Checked*
+
+    ‣ each case only contributes to one cell in the table	 &#10004; *Checked*
+
+2. Sample size: Each particular scenario (i.e. cell) must have at least 5 expected cases. &#10004; *Checked*
+
+
+I'll use the R function *chisq.test*, but first the appropriate table ownership/race :
 
 ```{r}
 gun_race <-weapon_df %>% filter(year==2012)  %>% filter(owngun=='Yes' | owngun=='No',owngun!='Refused')
@@ -348,7 +371,7 @@ year_asked<-unique(gun_asked$year)
 ```
 
 ```{r}
-
+# My deep apologies, i could not write a cleaner way to create a dataframe from a loop.
 x<-list()
 for (year in year_asked){
  chi2 <-  chi2_independance_pvalue(weapon_df,year)
@@ -361,20 +384,22 @@ df_pvalues<-as.data.frame(x) %>% gather()
 colnames(df_pvalues)<-c('yearX','pvalue')
 df_pvalues<- df_pvalues %>% separate(yearX,into = c("X", "year"), sep = "X")
 
-df_pvalues$log_pvalue<-log(df_pvalues$pvalue)
-
-#df_pvalues<- df_pvalues %>% filter(pvalue<.001)
-
-plot(df_pvalues$year,df_pvalues$pvalue)
-ggplot(data=df_pvalues,aes(x=as.numeric(year),y=log_pvalue)) + geom_point() + 
-  geom_smooth(method='lm')
+ggplot(df_pvalues ,aes(x=year,y=pvalue)) + geom_point()+ theme(axis.text.x=element_text(angle=45, hjust=1)) +geom_hline(yintercept = .05,col='red',linetype="dashed")  
 
 ```
 
 
-Chi Square independance test :
+The pvalue, with the exception of the year 1976, are all far below 0.05.
+
+We might exclude this 1976 point as an outliers, and plot the log of the pvalue :
 
 ```{r}
+df_pvalues$log_pvalue<-log(df_pvalues$pvalue)
 
+ggplot(data=df_pvalues %>% filter(pvalue<.1),aes(x=as.numeric(year),y=log_pvalue)) + geom_point() + 
+  geom_smooth(method='lm')
 ```
 
+
+What we obesrve here is a decreasing trend towards zero for the value.
+I would conclude that over the year, the chance of rejection of the hypothese of independance between gun ownership and race has got weaker.
