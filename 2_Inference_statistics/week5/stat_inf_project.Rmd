@@ -221,7 +221,7 @@ multiplot(p0, p1,cols = 2)
 ```
 
 
-We can clearly observe that during a 40 years time period, the gun ownership is still related to the income level. Rich households are more prone to won a gun, but in 2012, gun owners are less wealthy.
+We can clearly observe that during a 40 years time period, the gun ownership is still related to the income level. Rich households are more prone to won a gun, but compared to 1973, gun owners in 2012 are less wealthy.
 
 
 * * *
@@ -401,5 +401,5 @@ ggplot(data=df_pvalues %>% filter(pvalue<.1),aes(x=as.numeric(year),y=log_pvalue
 ```
 
 
-What we obesrve here is a decreasing trend towards zero for the value.
-I would conclude that over the year, the chance of rejection of the hypothese of independance between gun ownership and race has got weaker.
+What we observe here is a decreasing trend towards zero for the p-value.
+I would conclude that over the 40 years, the chance of rejection of the hypothese of independance between gun ownership and race has got stronger.
