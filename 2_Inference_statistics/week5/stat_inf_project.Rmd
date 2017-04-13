@@ -42,14 +42,17 @@ This dataset is a simplified sample of the official General Social Survey (GSS).
 The [**GSS**](http://gss.norc.org/documents/codebook/GSS_Codebook_intro.pdf) is a survey focusing on US society, gathering informations related to **societal behaviors and attitudes**.
 
 According to Wikpedia, "*It is one of the most influential studies in the social sciences, and is frequently referenced in leading publications, including The New York Times, The Wall Street Journal, and the Associated Press.*"
+
 It has been used in 25,000 scholarly publications and every year by 400.000 students.
 
-The data were gathered via face-to-face interviews by US households, for an average 90 minutes.
+This study has been done for 40 years.
+
+The data were gathered via face-to-face interviews by US households, for an average of 90 minutes.
 
 #### Sampling methodology
 
 **Random sampling** is implemented via strata : geographical area, sex, race, etc.
-This study has been done for 40 years.
+
 
 
 #### Case
@@ -58,15 +61,17 @@ Cases here are **adults living the US**.
 
 #### Scope of inference
 
-For the elements exposed (random sampling, no treatment assigned to random subjects), we can state that this is an **observational** study, from which we can extract **assocations** but no **causality** between the explanatory variables (demographics and social) and  the response (opinion, attitude). 
+From the elements exposed (random sampling, no treatment assigned to random subjects), we can state that this is an **observational** study, from which we can extract **associations** and considere the model as **generalizable**,  but no we cannot conclude on any **causality** between the explanatory variables (demographics and social) and  the response (opinion, attitude). 
 
 
 * * *
 
 ## Part 2: Research question
+
+As a french, two factors in the US society seem very specifics to me : the inherent racial dichotomy and the attitude towards guns.
+
 Based on this dataset, i'd like to evaluate the possible **association** between **race** and **gun ownership**, and its **evolution** over years.
 
-As a french, two factors in the US society seem very specifics to me : racial discrimation and attitude towards guns.
 
 This short analysis will try to evaluate whether both are somehow related.
 
@@ -209,7 +214,8 @@ A few comments :
 - The gap between whites and blacks gun ownership increased.
   
   
-Out of the current scope, i'd like to see the incomes level relationship with gun ownership :
+__Out of the current scope__, i'd like to see the incomes level relationship with gun ownership :
+Please take note that I remove the 0.5% of top incomes that i considere, maybe wrongly, as outliers.
 
 ```{r}
 
@@ -221,13 +227,18 @@ multiplot(p0, p1,cols = 2)
 ```
 
 
-We can clearly observe that during a 40 years time period, the gun ownership is still related to the income level. Rich households are more prone to won a gun, but compared to 1973, gun owners in 2012 are less wealthy.
+We can clearly observe that during a 40 years time period, the gun ownership is still related to the income level. Rich households are more prone to won a gun, but compared to 1973, gun owners in 2012 are less wealthy. 
+
+In the next part, we will proceed to the simple hypothese testing, whether the mean income level amongst gun ownership categories is similar.
 
 
 * * *
 
 ## Part 4: Inference
 
+
+
+### Gun ownership rate evolution over time
 
 Before we start testing the independance of gun ownership with race, we can as a starter check whether overall gun ownership did significantly changed over a period of 40 years.
 
@@ -236,6 +247,8 @@ We can proceed by comparing the gun ownership ration in 1972 with 2012 with the 
 $H_{0}:ownership_{1972}-ownership_{2012}=0$
 
 $H_{A}:ownership_{1972}- ownership_{2012}\ne 0$
+
+We are in the context of one numerical variable (**gun ownership ratio**) and one categorical (i considere the **year** as category). 
 
 
 We can compute the corresponding proportions :
@@ -297,14 +310,16 @@ ggplot(data.frame(x = c(-8, 8)), aes(x)) +
 ```
 
 
-From the Z value, it is obvious that the probabily that the gun ownership rate  in 2012 is different than the one in 1973 occurs by chance is almost zero. This has been confirmed by the chart above.
+From the Z value, it is obvious that the probability that the gun ownership rate in 2012 is different than the one in 1973 occurs by chance is almost zero. This has been confirmed by the chart above.
+
 
 This conclusion is confirmed by the following article from the Wapo : [**"ownership fall"**](https://www.washingtonpost.com/news/wonk/wp/2016/06/29/american-gun-ownership-is-now-at-a-30-year-low/?utm_term=.f4605793b86f)
 
 
-Finally, we can test the independance of the gun ownership rate from the race :
+### Gun Ownership amongst races and over time
+Now, we can test the independance of the gun ownership rate from the race :
 
-### Hypotheses
+#### Hypotheses
 
 $H_{0}:$ Race and gun ownership are independent.
 
@@ -312,15 +327,15 @@ $H_{A}:$ Race and gun ownership are dependent.
 
 
 
-### Chi-square test of independance 
+#### Chi-square test of independance 
 
 We want to test the independance of gun ownership ('Yes','No') with race ('White', 'Black','Other').
 *Nota Bene :* I removed the "Refusal" category from the sample, as it does not provide evidence of the ownership or not.
 
 
-We are in the case of two categorical variables, with at least 1 with more than 2 levels
+We are in the case of two categorical variables, with at least 1 with more than 2 levels, the only testing method i see here is the $\chi^2$ test.
 
-#### Conditions for the chi-square test:
+##### Conditions for the chi-square test:
 1. Independence: Sampled observations must be independent. 	
 
     ‣ random sample/assignment	&#10004; *Checked*
@@ -403,3 +418,41 @@ ggplot(data=df_pvalues %>% filter(pvalue<.1),aes(x=as.numeric(year),y=log_pvalue
 
 What we observe here is a decreasing trend towards zero for the p-value.
 I would conclude that over the 40 years, the chance of rejection of the hypothese of independance between gun ownership and race has got stronger.
+
+
+### Mean income equality test amongst gun ownership response (*out of scope*)
+
+#### Hypotheses
+
+$H_{0}:$  The average income level is the same across all gun ownership categories.
+
+$H_{A}:$  The  average income level differs between at least one pair of gun ownership category.
+
+#### ANOVA (*bites the dust*)
+
+In this last test, i would like to implement an Analyse of variance (ANOVA) for the mean income for different categories of gun ownership response ('Yes','No', 'Refusal').
+
+As seen in the EDA part, for 1973 and 2012, we noticed a gap for the **median** income amonst the gun owners and the others.
+
+Can we prove the **mean** also differ via an Anova test ?
+
+I first compute a linear model for both years :
+```{r}
+
+lm.1973 <- lm(coninc ~ owngun, data=weapon_df %>% filter(year==1973))
+lm.2012 <- lm(coninc ~ owngun, data=weapon_df %>% filter(year==2012))
+
+summary(lm.1973)
+summary(lm.2012)
+```
+
+It looks already promising, the Yes/No gun ownership have in both years a very low t-value, meaning they are significant in the linear model. By the way, not having a gun means in this context having also lower incomes.
+
+Now we can compute the F statistic and the corresponding p_value :
+
+```{r}
+anova(lm.1973)
+anova(lm.2012)
+```
+
+For both years, the p_value for the F statistic is well below the significant level, we can reject the null hypothese. The mean income discrepancies amongst gun ownership categories **do not happen by chance**.

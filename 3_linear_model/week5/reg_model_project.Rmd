@@ -1,0 +1,129 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Clement Lefevre 13th April 2017.
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(statsr)
+library(GGally)
+```
+
+### Load data
+
+
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+This dataset, as described in the instructions does consist in a **random sample** of **651 US movies** extracted from both **IMDB** and **Rotten Tomatoes** databases.
+
+All have been released between 1970 and 2014. 
+
+Assuming this is an observational study with random sampling, it should be *representative* of US movies. By using random sampling, the resulting prediction model should be *generalizable* to US movies released between 1970 and 2014.
+
+
+
+
+#### Remark regarding generalizability *(out of scope)*
+
+In order to get an idea whether the random sample is generalizable, i compared it with a larger IMDB titles dataset ( *imdb_official_titles.csv* 236,710 different movies) and focused on the **release year distribution**.
+
+I filtered this imdb dataset on the same time period as the movies dataset :
+
+```{r}
+
+min_tht_release_year <- min(movies$thtr_rel_year)
+max_tht_release_year<- max(movies$thtr_rel_year)
+imdb_titles<-read.csv('imdb_official_titles.csv')
+sample_imdb_titles<-sample_n(imdb_titles[(imdb_titles$year>=min_tht_release_year) &
+ (imdb_titles$year<=max_tht_release_year),],nrow(movies))
+
+both_datasets<-data.frame(movies$thtr_rel_year,sample_imdb_titles$year)
+colnames(both_datasets) <- c("movies","imdb_sample")
+both_datasets<-both_datasets %>% gather('dataset','release_year')
+
+ggplot(data=both_datasets,aes(x=release_year,fill=dataset))+geom_histogram(position="identity",alpha=0.3)
+
+```
+
+
+Both *movies* and *imdb sample* datasets are not normally distributed as shown with the test below :
+```{r}
+shapiro.test(movies$thtr_rel_year)
+shapiro.test(sample_imdb_titles$year)
+```
+I then  used the Kolmogorvo-Smirnov test to check if both theater release years are equally distributed.
+
+```{r}
+ks.test(movies$thtr_rel_year,sample_imdb_titles$year)
+```
+A qqplot does confirm this result :
+```{r}
+qqplot(movies$thtr_rel_year,sample_imdb_titles$year)
+```
+
+Although the *movies* dataset is a random sample, i cast doubts on the generalizability of such sample.
+
+
+#### Causality
+As we are in a context of **observational studies**, we might conclude some association patterns, but contrary to an experimental study with random samples,  **no causality** that might be deduced from it.
+
+
+
+* * *
+
+## Part 2: Research question
+
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+```{r}
+
+actors<- grep('actor',colnames(movies),value = TRUE)
+exclude_cols <-c(c("title","studio","director","imdb_url","rt_url"),actors)
+str(exclude_cols)
+ggpairs(movies %>% select(-one_of(exclude_cols)))
+```
+
+
+* * *
+
+## Part 4: Modeling
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 5: Prediction
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 6: Conclusion
+
