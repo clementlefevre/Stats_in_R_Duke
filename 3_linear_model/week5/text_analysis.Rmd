@@ -27,17 +27,7 @@ load("movies.Rdata")
 
 ```
 
-```{r}
-source('corpusMaker.R')
 
-spdtm<- corpusMaker(movies,'title')
-
-str(spdtm)
-```
-```{r}
-dim(spdtm)
-dim(movies)
-```
 ```{r}
 movies$id<-rownames(movies)
 myReader <- readTabular(mapping=list(content="title", id="id"))
@@ -56,11 +46,11 @@ inspect(dtm)
 dtm_df<-as.data.frame(as.matrix(dtm))
 colnames(dtm_df)<- make.names(colnames(dtm))
 head(dtm_df)
-dtm_df$score<-movies$audience_score
+dtm_df$audience_score<-movies$audience_score
   
 ```
 ```{r}
- dtm_df_score<- dtm_df %>% mutate_each(funs(.*score))
+ dtm_df_score<- dtm_df %>% mutate_each(funs(.*audience_score))
 ```
 
 ```{r}
@@ -71,7 +61,7 @@ total_count <- dtm_df %>% summarise_each(funs(sum)) %>% gather(term,count)
 
 result_df<- merge(total_score,total_count,by = "term")
 
-result_df <- result_df %>% mutate(average_score = score_total/count) %>% arrange((desc(score_total)))
+result_df <- result_df %>% mutate(average_score = score_total/count) %>% arrange((desc(average_score))) %>% filter(count>3)
 head(result_df)
 ```
 
