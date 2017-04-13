@@ -100,10 +100,23 @@ As we are in a context of **observational studies**, we might conclude some asso
 
 ```{r}
 
+bad_movies <- movies %>% arrange(audience_score) %>% head(200)
+
+head(bad_movies)
+
+plot(bad_movies$audience_score,bad_movies$audience_score)
+min(movies$audience_score)
+```
+
+```{r}
 actors<- grep('actor',colnames(movies),value = TRUE)
-exclude_cols <-c(c("title","studio","director","imdb_url","rt_url"),actors)
-str(exclude_cols)
-ggpairs(movies %>% select(-one_of(exclude_cols)))
+dvd<-grep('dvd',colnames(movies),value = TRUE)
+tht<-grep('tht',colnames(movies),value = TRUE)
+best<-grep('best',colnames(movies),value = TRUE)
+critic<-grep('critic',colnames(movies),value = TRUE)
+audience<-grep('audience_rating',colnames(movies),value = TRUE)
+exclude_cols <-c(c("title","studio","director","imdb_url","rt_url","imdb_rating"),actors,dvd,tht,best,critic,audience)
+
 ```
 
 
@@ -111,9 +124,14 @@ ggpairs(movies %>% select(-one_of(exclude_cols)))
 
 ## Part 4: Modeling
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+
+```{r}
+movies_simple<- movies %>% select(-one_of(exclude_cols)) %>% na.omit()
+lm1<-lm(audience_score~. ,data=movies_simple)
+
+best_lm<-step(lm1,direction ="backward")
+summary(best_lm)
+```
 
 * * *
 

@@ -1,0 +1,72 @@
+---
+title: "Text Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(caret)
+library(tm)
+library(SnowballC)
+library(caTools)
+library(rpart)
+library(rpart.plot)
+library(ROCR)
+Sys.setlocale("LC_ALL", "C")
+```
+```{r}
+load("movies.Rdata")
+
+
+```
+
+```{r}
+source('corpusMaker.R')
+
+spdtm<- corpusMaker(movies,'title')
+
+str(spdtm)
+```
+```{r}
+dim(spdtm)
+dim(movies)
+```
+```{r}
+movies$id<-rownames(movies)
+myReader <- readTabular(mapping=list(content="title", id="id"))
+tm <- VCorpus(DataframeSource(movies), readerControl=list(reader=myReader))
+
+tm = tm_map(tm, content_transformer(tolower))
+tm = tm_map(tm, removePunctuation)
+tm = tm_map(tm, removeWords, stopwords("english"))
+tm = tm_map(tm, stemDocument)
+
+dtm<-DocumentTermMatrix(tm)
+inspect(dtm)
+```
+
+```{r}
+dtm_df<-as.data.frame(as.matrix(dtm))
+colnames(dtm_df)<- make.names(colnames(dtm))
+head(dtm_df)
+dtm_df$score<-movies$audience_score
+  
+```
+```{r}
+ dtm_df_<- dtm_df %>% mutate_each(funs(.*score))
+```
+
+```{r}
+total_score<- dtm_df %>% summarise_each(funs(sum,n())) #%>% gather(term,score_total) %>% arrange(desc(score_total))
+
+head(total_score,30)
+
+```
+
