@@ -15,22 +15,17 @@ library(tidyr)
 library(caret)
 library(tm)
 library(SnowballC)
-library(caTools)
-library(rpart)
-library(rpart.plot)
-library(ROCR)
+
 Sys.setlocale("LC_ALL", "C")
 ```
 ```{r}
 load("movies.Rdata")
-
-
 ```
 
 
 ```{r}
 movies$id<-rownames(movies)
-myReader <- readTabular(mapping=list(content="title", id="id"))
+myReader <- readTabular(mapping=list(content="title", id="title"))
 tm <- VCorpus(DataframeSource(movies), readerControl=list(reader=myReader))
 
 tm = tm_map(tm, content_transformer(tolower))
@@ -42,26 +37,34 @@ dtm<-DocumentTermMatrix(tm)
 inspect(dtm)
 ```
 
+We convert the DocumenntTermMatric to a dataframe, and replace the word count per title by the presence of not (0/1):
 ```{r}
 dtm_df<-as.data.frame(as.matrix(dtm))
 colnames(dtm_df)<- make.names(colnames(dtm))
 head(dtm_df)
-dtm_df$audience_score<-movies$audience_score
-  
+
+max(dtm_df)
+m <- as.matrix(dtm_df)
+m[m>1] <- 1
+dtm_df <- as.data.frame(m)
+
+
 ```
+We can now compute the average audience score per word :
 ```{r}
- dtm_df_score<- dtm_df %>% mutate_each(funs(.*audience_score))
+
+dtm_df$audience_score<-movies$audience_score
+dtm_df_score<- dtm_df %>% mutate_each(funs(.*audience_score))
 ```
 
 ```{r}
 total_score<- dtm_df_score %>% summarise_each(funs(sum)) %>% gather(term,score_total) %>% arrange(desc(score_total))
 
-
-total_count <- dtm_df %>% summarise_each(funs(sum)) %>% gather(term,count)
+total_count <- dtm_df %>% summarise_each(funs(sum(.>0))) %>% gather(term,count)
 
 result_df<- merge(total_score,total_count,by = "term")
 
 result_df <- result_df %>% mutate(average_score = score_total/count) %>% arrange((desc(average_score))) %>% filter(count>3)
-head(result_df)
+tail(result_df,10)
 ```
 

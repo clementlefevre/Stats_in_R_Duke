@@ -1,7 +1,7 @@
 
 
-corpusMaker<- function(df,feature){
-  corpus <- Corpus(VectorSource(df[,feature]))
+corpusMaker<- function(vectoros){
+  corpus <- Corpus(VectorSource(vectoros))
   corpus[[1]]$content
   
   corpus = tm_map(corpus, content_transformer(tolower))
@@ -29,6 +29,6 @@ corpusMaker<- function(df,feature){
   dtm<-as.data.frame(as.matrix(dtm))
   colnames(dtm)<- make.names(colnames(dtm))
   
-  return( dtm)
+  return(dtm)
   
 }
