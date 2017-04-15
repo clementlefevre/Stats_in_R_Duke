@@ -7,7 +7,8 @@ output:
     theme: spacelab
 ---
 
-## Clement Lefevre 13th April 2017.
+#### *Clement Lefevre*
+#### *13th April 2017.*
 
 ### Load packages
 
@@ -22,7 +23,6 @@ library(SnowballC)
 library(gridExtra)
 library(grid)
 library(stringr)
-library(ggcorrplot)
 library(ggplot2)
 
 source('multiplot.r')
@@ -51,57 +51,17 @@ All have been released between 1970 and 2014.
 Assuming this is an observational study with random sampling, it should be *representative* of US movies. By using random sampling, the resulting prediction model should be *generalizable* to US movies released between 1970 and 2014.
 
 
-#### Causality
+#### Scope of inference
 As we are in a context of **observational studies**, we might conclude some association patterns, but contrary to an experimental study with random samples,  **no causality** that might be deduced from it.
-
-#### Remark regarding generalizability *(out of scope)*
-
-In order to get an idea whether the random sample is generalizable, i compared it with a larger IMDB titles dataset ( *imdb_official_titles.csv* 236,710 different movies) and focused on the **release year distribution**.
-
-I filtered this imdb dataset on the same time period as the movies dataset :
-
-```{r}
-
-min_tht_release_year <- min(movies$thtr_rel_year)
-max_tht_release_year<- max(movies$thtr_rel_year)
-imdb_titles<-read.csv('imdb_official_titles.csv')
-sample_imdb_titles<-sample_n(imdb_titles[(imdb_titles$year>=min_tht_release_year) &
- (imdb_titles$year<=max_tht_release_year),],nrow(movies))
-
-both_datasets<-data.frame(movies$thtr_rel_year,sample_imdb_titles$year)
-colnames(both_datasets) <- c("movies","imdb_sample")
-both_datasets<-both_datasets %>% gather('dataset','release_year')
-
-ggplot(data=both_datasets,aes(x=release_year,fill=dataset))+geom_histogram(position="identity",alpha=0.3)
-
-```
-
-
-Both *movies* and *imdb sample* datasets are not normally distributed as shown with the test below :
-```{r}
-shapiro.test(movies$thtr_rel_year)
-shapiro.test(sample_imdb_titles$year)
-```
-I then  used the Kolmogorvo-Smirnov test to check if both theater release years are equally distributed.
-
-```{r}
-ks.test(movies$thtr_rel_year,sample_imdb_titles$year)
-```
-A qqplot does confirm this result :
-```{r}
-qqplot(movies$thtr_rel_year,sample_imdb_titles$year)
-```
-
-Although the *movies* dataset is a random sample, i cast doubts on the generalizability of such sample.
 
 
 * * *
 
 ## Part 2: Research question
 
-As i have alread worked on this dataset for the Bayesian Inference project to predict the `audience_score`, this time i'd like to focus on the relationship between the title of a movie and its audience score. 
+As i have alread worked on this dataset for the Bayesian Inference project to predict the `audience_score`, this time i'd like to focus on the relationship between the **textual elements** (title and crew names) of a movie and its audience score. 
 
-**More specifically, does the length of the title or its content improve the prediction of the audience score ?**
+**Does the title and  crew are related to the `audience score` ?**
 
 
 * * *
@@ -118,8 +78,10 @@ ggplot(movies,aes(x=audience_score))+ geom_histogram(bins = 25) + geom_vline(xin
 
 ```
 
-`audience_score` our target for the prediction is left-skewed, with a mean at 62%.
+With a small dataset size (651 samples), `audience_score` our target for the prediction is left-skewed, with a mean at 62%.
 
+
+### New variables
 
 Some data preparation is necessary in order to get three new variables :
 
@@ -148,6 +110,8 @@ movies[which.max(movies$title_length),]$title
 
 Well, the min is *Max*, and the longest is also the *most dangerous* !
 
+How does the `title_length` evolve over time ?
+
 
 ```{r}
 groupy_year<- movies %>% group_by(thtr_rel_year) %>% summarise(title_length = median(title_length), number_movies=n())
@@ -155,7 +119,8 @@ ggplot(groupy_year,aes(x= thtr_rel_year, y= title_length)) + geom_line()
 ```
 
 
-With the exception of an outlier in 1972, the title length does not follow a trend over the years.
+
+With the exception of an outlier in 1972, the `title_length` does not follow a trend over the years.
 
 
 Let's look at the relationship with `audience_score` :
@@ -188,7 +153,7 @@ In order to create the new categorical variables `title_score` and `crew_score` 
 
 I will get a matrix with all movies title as row and all used words as column, with the frequency of use as value.
 
-All this process is well explained in the ["Analytical Edge MIT15071" online course](https://www.edx.org/course/analytics-edge-mitx-15-071x-3), that i can strongly recommend as a complement to the current course.
+All this process is well explained in the ["Analytical Edge MIT15071" online course](https://www.edx.org/course/analytics-edge-mitx-15-071x-3), that i warmly recommend as a complement to the current course.
 
 ```{r}
 
@@ -264,15 +229,12 @@ tail(result_df,10) %>% arrange(average_score)
 worst_words<- tail(result_df,10)$term
 ```
 
-Just by curiosity again, how about the crew and directors ?
+Now we do the same for the actors and directors :
 
 First, i combine all names and surnames into a single column :
 
 ```{r}
-
-actors.cols<- grep('actor',colnames(movies),value = TRUE)
 movies<- movies%>% mutate(crew= paste(actor1,actor2,actor3,actor4,actor5,director))
-
 ```
 
 And now compute the average score per name :
@@ -319,7 +281,7 @@ movies$title_score_factor<- factor(movies$title_score)
 movies$crew_score_factor<- factor(movies$crew_score)
 
 
-## i remove the zero score to improve lisibility : 
+# !!!! i remove the zero score to improve lisibility : 
 p0<-ggplot(movies %>% filter(title_score!=0),aes(x=audience_score,y=imdb_rating,col=title_score_factor)) + geom_jitter(alpha=.6)
 p1<-ggplot(movies %>% filter(crew_score!=0),aes(x=audience_score,y=imdb_rating,col=crew_score_factor)) + geom_jitter(alpha=.6)
 
@@ -346,7 +308,7 @@ ggpairs(movies, c("title_length","audience_score","title_score","crew_score"), t
 
 As we see here, the two new variables title_score and crew_score are not correlated together.
 Their Pearson correlation with audience_score is respectively : **$\rho =0.22$** and **$\rho=0.504$**.
-The title_length canbe ignored with **$\rho$=0.06**
+The title_length can be ignored with **$\rho$=0.06**
 
 
 Finally, we remove the intermediate variable we created to compute `title_score` and `crew_score`
@@ -368,8 +330,8 @@ First, we can remove predictors that seem irrelevant :
 - all url variables,
 - `title` : already in a way in title_score,
 - `audience_rating` : a subversion of audience_score,
-- àll critics variables, much too correlated to the other scoring variables.
-- `imdb_rating` ,  $\rho$ = 0.864 with `audience_score`, i considere it as a target variable also.
+- all critics variables, much too correlated to the other scoring variable `imdb_rating`.
+- `imdb_rating` ,  $\rho$ = 0.864 with `audience_score` : **my aim is not to find the best model, but to evaluate the predictive power of the text content. Thus i exclude it.**
 
 
 We get then a new set of predictors :
@@ -386,7 +348,7 @@ movies_simple<- movies %>% select(-one_of(exclude_cols)) %>% na.omit()
 ```
 
 
-Now we have a lighter dataset, we can build a model and use the step function to select the best one :
+Now we have a lighter dataset, we can build a model and use the step function to select the best one  based on the Aikike information criteria (AIC):
 
 ```{r}
 
@@ -407,7 +369,7 @@ summary(best_lm)
 
 ```
 
-Finally, both  crew_score  and title_score did pass the model selection with a p_value  below a reasonable significance level. Again, i did choose not using predictors too close to the target, i.e. of the rating/scoring family.
+Finally, both  crew_score  and title_score did pass the model selection with a p_value  below a reasonable significance level. Again, i did choose not using predictors too close to the target, i.e. of the rating/scoring family, hence the low adjusted determination coefficient $R^2 = 0.444$. Thus, i do no expect good results on the prediction.
 
 Let's plot some chart to check the validity of the selected model :
 
@@ -438,22 +400,41 @@ p2
 
 The residuals vs the fitted values are **slighlty constantly distributed along the Zero value**, which is suspicious regarding the expecte quality of the prediction. The residuals tend to decrease as the fitted `audience_score` increase.
 
-For residuals vs crew_score, we observe an uniform distribution, which is conform to a good linear model.
+For residuals vs `crew_score`, we observe an uniform distribution, which is conform to a good linear model.
 
-For imdb_num_votes, the shape is due to the actual distribution of this predictors, which is very right skewed :
+For `imdb_num_votes`, the shape is due to the actual distribution of this predictors, which is very right skewed :
 
 ```{r}
 ggplot(movies,aes(x=imdb_num_votes)) +geom_histogram()
 ```
-
+Using an unbalanced predictor is not recommended, i exclude it then and recompute the model :
 
 ```{r}
+lm3<- lm(audience_score ~ title_type + genre  + 
+    best_pic_nom + title_score + crew_score, data = movies_simple)
+
+best_lm<-step(lm3, direction = "backward", trace = 0)
+summary(best_lm)
+```
+Finally, the model as 4 predictors : `genre`, `bestpic`, `title_score``and `crew_score`.
+
+It can explain 40% of the variance, which is low. 
+Intercept has no real meaning in the context. Genre like Documentary and Musical increase the audience_score of 20%, and one point of `title_score` gives 7.4 additional percent of  `audience_score`, one point of `crew_score` gives 3.8 percent of `audience_score`. The p-value allows us to reject the $H_{0}$ hypothese that the predictors have no effect on the `audience_score`.
+
+```{r}
+
+ggplot(data = best_lm, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals") + ggtitle("Residuals vs Fitted values")
+
 ggplot(data = best_lm, aes(x = .resid)) +
   geom_histogram(binwidth = 2) +
   xlab("Residuals") + geom_vline(xintercept = median(best_lm$residuals),color='blue')
 ```
 
-Good, the residuals are shaped along a slightly left skewed normal distribution, as the blue line for median residuals shows.
+The residuals are shaped along a slightly left skewed normal distribution, as the blue line for median residuals shows.
 
 
 ```{r}
@@ -461,7 +442,7 @@ ggplot(data = best_lm, aes(sample = .resid)) +
   stat_qq()+ ggtitle("qqplot")
 ```
 
-The previous observation is confirmed by the qqplot : the residuals follow a normal distribution.
+The previous observation is confirmed by the qqplot : the residuals follow a **slightly distorted normal distribution**.
 
 We can therefore use the model to predict the `audience_score` of a movie out of the current dataset.
 
@@ -469,14 +450,44 @@ We can therefore use the model to predict the `audience_score` of a movie out of
 
 ## Part 5: Prediction
 
-```{r}
-huntsman <- data.frame(genre = "Action & Adventure", runtime = 121, mpaa_rating = "PG-13",  critics_score = 17, best_any = "Yes",title_type="Feature Film", imdb_num_votes= 1000,best_pic_nom='yes',title_score=3,crew_score=4)
+For the prediction, i selected "Independance Day : resurgence", one of the worst movies of 2016.
 
-predict(best_lm,newdata = huntsman)
+![ ](independance_day_resurgence.png)
+
+Before proceeding to the prediction, we have to compute the 2 new variables, `title_score` and `crew_score` :
+
+```{r}
+title<-"Independance Day Resurgence"
+crew <- "Roland Emmerich Liam Hemsworth Jeff Goldblum Jessie T. Usher Bill Pullman Maika Monroe"
+
+title_score <- str_count(tolower(title),paste(top_words, collapse='|')) - str_count(tolower(title),paste(worst_words, collapse='|'))
+
+crew_score <- str_count(tolower(crew),paste(top_crew, collapse='|')) - str_count(tolower(title),paste(worst_crew, collapse='|'))
+
+title_score
+crew_score
 ```
+
+Finally, we can predict the `audience_score` :
+```{r}
+independance_day_resurgence <- data.frame(genre = "Action & Adventure", runtime = 119, mpaa_rating = "PG-13",  critics_score = 31, best_any = "Yes",title_type="Feature Film",best_pic_nom='no',title_score=title_score,crew_score=crew_score)
+
+predict(best_lm,newdata = independance_day_resurgence,interval  = "prediction")
+```
+
+So we get 60% `audience_score` estimation for an observed of 35%, that means a Root Mean Square Error of 25% !
+The confidence interval is almost as wide as the `audience_score` range. That is a **very weak model**.
+
+*Spoiler : i have not watched this movie.*
 
 
 * * *
 
 ## Part 6: Conclusion
 
+As the aim was to use the text elements of the dataset to make a prediction, the performance of the model, on one sample is bad. Two elements here :
+
+- i removed predictors such as `imdb_rating`, 'critics_score` with **high predictive power**.
+- the model created tends to **overfit** on the current dataset, due to intrinsic nature of the new variables.
+
+Using words occurence as predictor was finally not a good idea, but as too often stated, with more data, this approach would have performed  better.
