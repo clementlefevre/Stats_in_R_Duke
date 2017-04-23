@@ -17,6 +17,8 @@ First, let us load the data:
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(easyGgplot2)
+
 library(GGally)
 load("ames_train.Rdata")
 ```
@@ -97,9 +99,9 @@ max_cols<-ames_train %>% select(Lot.Area,Year.Built,Bedroom.AbvGr) %>%  summaris
 dim(max_cols)
 dim(ames_train)
 max_cols
-ames_train$Overall.Qual<-as.numeric(ames_train$Overall.Qual)
+ames_train$Overall.Qual_num<-as.numeric(ames_train$Overall.Qual)
 
-ggpairs(ames_train,column=c("price","Lot.Area","Year.Built","Bedroom.AbvGr","Overall.Qual") )
+ggpairs(ames_train,column=c("price","Lot.Area","Year.Built","Bedroom.AbvGr","Overall.Qual_num") )
 ```
 
 \fb{For each of the listed independent variables, create a scatterplot with the independent variable on the x-axis and `price` on the y-axis.  What seems to be the most linear?
@@ -121,6 +123,17 @@ Use scatterplots for describing the relationship between two numerical variables
 ```{r Q5}
 # type your code for Question 5 here, and Knit
 
+p0<-ggplot(ames_train,aes(area,price)) +geom_point() 
+p1<-ggplot(ames_train,aes(area,log(price))) +geom_point()
+p2<-ggplot(ames_train,aes(log(area),price)) +geom_point()
+p3<-ggplot(ames_train,aes(log(area),log(price))) +geom_point()
+
+# Multiple graphs on the same page
+ggplot2.multiplot(p0,p1,p2,p3, cols=2)
+
+
+
+
 ```
 
 \fb{For each of the four options, visualize the relationship using a graphical device such as a scatterplot.  What seems to be the most linear?
@@ -141,6 +154,11 @@ Use scatterplots for describing the relationship between two numerical variables
 
 ```{r Q6}
 # type your code for Question 6 here, and Knit
+#the Beta posterior is : B(prior+successes,prior+failures)
+table(ames_train$Garage.Type)
+sum(table(ames_train$Garage.Type))
+
+print('Beta(963,47)')
 
 ```
 
@@ -162,6 +180,22 @@ Make inferences about a proportion using a conjugate Beta prior:
 ```{r Q7}
 # type your code for Question 7 here, and Knit
 
+#Over 30 percent of houses were built after the year 1999.
+print(sum(ames_train$Year.Built>1999)/nrow(ames_train)*100)
+
+#The median housing price is greater than the mean housing price.
+
+median(ames_train$price)
+mean(ames_train$price)
+
+#21 houses do not have a basement.
+sum(table(ames_train$Bsmt.Qual))
+
+#4 houses are located on gravel streets.
+table(ames_train$Street)
+
+print ('21 houses do not have a basement.')
+
 ```
 
 \fb{For each of the statements, determine whether it is true or false by using functions such as `summary`, `sum`, or `median` to describe the distribution of a relevant variable.
@@ -180,6 +214,32 @@ Describe the distribution of a single variable.
 
 ```{r Q8}
 # type your code for Question 8 here, and Knit
+ames_train <- ames_train %>% mutate(no.Garage= is.na(Garage.Type) )
+group_garage<- ames_train  %>% group_by(no.Garage) %>% summarise(n(),mean(area))
+group_garage
+table(is.na(ames_train$Garage.Type))
+
+noGarage<-ames_train %>% filter(no.Garage)
+hasGarage<-ames_train %>% filter(!no.Garage)
+
+meanNoGarage<-mean(noGarage$area)
+meanHasGarage<-mean(hasGarage$area)
+
+sdNoGarage<- sd(noGarage$area)
+sdhasGarage<- sd(hasGarage$area)
+
+sdNoGarage
+sdhasGarage
+
+# SE = sqrt[ (s1^2/n1) + (s2^2/n2) ]
+SE<- sqrt( sdNoGarage^2/46 + sdhasGarage^2/954 )
+SE
+
+DF <- 45
+
+DF
+
+2*pt((meanHasGarage-meanNoGarage)/SE,df = 50,lower.tail = F)
 
 ```
 
@@ -200,6 +260,44 @@ Use the t-distribution for inference on a single mean, difference of paired (dep
 
 ```{r Q9}
 # type your code for Question 9 here, and Knit
+ames_train_big<-ames_train %>% filter(area>2000) 
+sum(ames_train_big$Bedroom.AbvGr)
+nrow(ames_train_big)
+length(ames_train_big$Bedroom.AbvGr)
+
+# prior :
+mean<- 3
+#mean = k*theta
+sd<- 1
+# sd = theta*sqrt(k)
+
+k<-(mean/sd)^2
+k
+
+theta<-mean/k
+theta
+
+#average number of bedrooms in houses with square footage greater than 2000 square feet
+
+# k*=k+number of room total
+# tetha* = theta /(number of sample *theta +1)
+
+# then :
+
+k_<-k+sum(ames_train_big$Bedroom.AbvGr)
+theta_<-theta/(length(ames_train_big$Bedroom.AbvGr)*theta+1)
+
+k_
+theta_
+
+
+post_mean <- k_*theta_
+post_sd <- theta_*sqrt(k_)
+
+post_mean
+post_sd
+
+
 
 ```
 
@@ -222,6 +320,11 @@ Elicit prior beliefs about a parameter in terms of a Beta, Gamma, or Normal dist
 ```{r Q10}
 # type your code for Question 10 here, and Knit
 
+ggplot(ames_train,aes(x=log(area),y=log(price),colour=Sale.Condition=='Abnorml'))+ geom_point() +geom_smooth(method = 'lm')
+ggplot(ames_train,aes(x=log(area),y=log(price),colour=Bedroom.AbvGr==2))+ geom_point()+geom_smooth(method = 'lm')
+ggplot(ames_train,aes(x=log(area),y=log(price),colour=Overall.Qual_num<3))+ geom_point()+geom_smooth(method = 'lm')
+ggplot(ames_train,aes(x=log(area),y=log(price),colour=Year.Built<1930))+ geom_point()+geom_smooth(method = 'lm')
+
 ```
 
 \fb{To identify the outliers, find the observations with the highest squared residuals under the proposed model.  Compare those observations (extract with the `which` function) to see what they have in common.
@@ -242,6 +345,10 @@ Identify outliers and high leverage points in a linear model.
 ```{r Q11}
 # type your code for Question 11 here, and Knit
 
+
+ggplot(ames_train,aes(x=price))+geom_histogram()
+ggplot(ames_train,aes(x=log(price)))+geom_histogram()
+
 ```
 
 
@@ -261,7 +368,7 @@ Identify the assumptions of linear regression and assess when a model may need t
 
 ```{r Q12}
 # type your code for Question 12 here, and Knit
-
+ames_train %>% group_by(Neighborhood)  %>% summarise(total = n(), fam1 = sum(Bldg.Type=='1Fam')) %>% mutate(ratio=fam1/total) %>% filter(ratio==1)
 ```
 
 \fb{Use either frequency tables for each neighborhood or the dplyr command `group_by` followed by `summarise(mean(Bldg.Type == "1Fam"))`
@@ -278,6 +385,10 @@ Use contingency tables and segmented bar plots or mosaic plots to assess the rel
 
 ```{r Q13}
 # type your code for Question 13 here, and Knit
+
+cor(log(ames_train$area),ames_train$Bedroom.AbvGr)
+
+ggplot(ames_train,aes(Bedroom.AbvGr,log(area))) + geom_jitter()
 
 ```
 
@@ -297,6 +408,11 @@ Use scatterplots and other graphical devices to describe the relationship betwee
 
 ```{r Q14}
 # type your code for Question 14 here, and Knit
+
+table(ames_train$BsmtFin.Type.1)
+unf_bsmt<- ames_train %>% filter(!is.na(Bsmt.Unf.SF))
+mean(unf_bsmt$Bsmt.Unf.SF)
+
 
 ```
 
