@@ -13,8 +13,11 @@ First, let us load the data and necessary packages:
 ```{r load, message = FALSE}
 load("ames_train.Rdata")
 library(MASS)
+library(BAS)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
+library(easyGgplot2)
 ```
 
 #
@@ -44,22 +47,34 @@ What we have here is a right-skewed distribution with three modes :
 The mantra in real estate is "Location, Location, Location!" Make a graphical display that relates a home price to its neighborhood in Ames, Iowa. Which summary statistics are most appropriate to use for determining the most expensive, least expensive, and most heterogeneous (having the most variation in housing price) neighborhoods? Report which neighborhoods these are based on the summary statistics of your choice. Report the value of your chosen summary statistics for these neighborhoods.
 
 
-For this question i would use boxplot per Neighborhood, which allows us :
+For this question i would use boxplot per Neighborhood, which allows us to compare the median and the spread of each.
 
-- to compare the Neighborhood,
-- to display the distribution of each.
 
 ```{r Q2}
 # type your code for Question 2 here, and Knit
-ggplot(ames_train,aes(x=Neighborhood,y=price/1000,fill=Neighborhood))+ geom_boxplot() +theme(axis.text.x=element_text(angle=45, hjust=1),
-                                                                                        axis.text.y=element_text(angle=45, hjust=1)) +  labs(title = "Houses prices per Neighborhood ('000$)")+ theme(legend.position="none")+ylab('Price in 000 $')
+ggplot(ames_train,aes( x=reorder(Neighborhood, price, FUN=median),y=price/1000,fill=Neighborhood))+ geom_boxplot() +theme(axis.text.x=element_text(angle=45, hjust=1),                                                                        axis.text.y=element_text(angle=45, hjust=1)) +  labs(title = "Houses prices per Neighborhood ('000$)")+ theme(legend.position="none")+ylab('Price in 000 $')+xlab('')
 
 ```
+For the corresponding statistics, in order to compute the most expensive, least expensive, and most heterogeneous i will select the neighbohood with respectively :
 
+- the lowest median price,
+- the highest median price,
+- the highest standard deviation on price.
+
+
+```{r}
+groupy_neighborhood<- ames_train %>% group_by(Neighborhood) %>% summarise(std_price=sd(price),  median_price=median(price))  
+
+groupy_neighborhood %>% top_n(1,wt=std_price)
+groupy_neighborhood %>% top_n(1,wt=median_price)
+groupy_neighborhood %>% top_n(-1,wt=median_price)
+```
+StoneNr is the Neighborhood with both the highest median price and the most heterogenous.
+MeadowV is the cheapest Neighborhood in term of median price.
 
 * * *
 
-NOTE: Write your written response to Question 2 here.  Delete this note before you submit your work.
+
 
 
 
@@ -71,13 +86,13 @@ Which variable has the largest number of missing values? Explain why it makes se
 
 ```{r Q3}
 # type your code for Question 3 here, and Knit
+ames_train %>% summarise_each(funs(sum(is.na(.)))) %>% gather() %>% top_n(5,wt=value)
 
 ```
-
+Looking at the Codebook , Pool quality (Pool.QC) is only valid when there is a pool. Thus the 99.7% missing values.
 
 * * *
 
-NOTE: Write your written response to Question 3 here.  Delete this note before you submit your work.
 
 
 * * *
@@ -87,14 +102,20 @@ NOTE: Write your written response to Question 3 here.  Delete this note before y
 We want to predict the natural log of the home prices. Candidate explanatory variables are lot size in square feet (Lot.Area), slope of property (Land.Slope), original construction date (Year.Built), remodel date (Year.Remod.Add), and the number of bedrooms above grade (Bedroom.AbvGr). Pick a model selection or model averaging method covered in the Specialization, and describe how this method works. Then, use this method to find the best multiple regression model for predicting the natural log of the home prices.
 
 
+
+I use the easy way, with a step method based on the Bayesian Information Criteria (BIC). This methods iterates over the predictors, starting from one predictor to all (when the direction is 'forward') or from all predictors to one (direction is 'backward') and it will select the combination of predictor that produces the lowest AIC value on the training set.
 ```{r Q4}
 # type your code for Question 4 here, and Knit
+lm1<-lm(log(price)~Lot.Area+Land.Slope+Year.Built+Year.Remod.Add+Bedroom.AbvGr,data=ames_train)
 
+# fit with step AIC
+best_model1<-stepAIC(lm1,trace=F,k = log(nrow(ames_train)))
+summary(best_model1)
 ```
 
 * * *
 
-NOTE: Write your written response to Question 4 here.  Delete this note before you submit your work.
+What we got here is a model that keeps all predictors. Under a significant p_value of $\alpha=0.05$, they are all also all significant. The Determination coefficient R2 is quite low (0.5598) is below the 0.7 threshold whereby we can considere the model has a strong predictive power. 
 
 
 * * *
@@ -104,14 +125,40 @@ NOTE: Write your written response to Question 4 here.  Delete this note before y
 Which home has the largest squared residual in the previous analysis (Question 4)? Looking at all the variables in the data set, can you explain why this home stands out from the rest (what factors contribute to the high squared residual and why are those factors relevant)?
 
 
+First, we can compute the squared residuals :
+
 ```{r Q5}
 # type your code for Question 5 here, and Knit
-
+ames_train$SqResid<-(best_model1$residuals)^2
 ```
+
+
+Then show the row index of the highest Squared Residual value :
+
+```{r}
+which.max(best_model1$residuals)
+```
+
+Well, hard to guess which factor does make this house such an outlier. Let's have a look at the different predictors used by the model and plot the outlier :
+
+```{r}
+
+p0<-ggplot(ames_train,aes(x=Lot.Area,y=log(price),col=PID==902207130))+geom_point()
+p1<-ggplot(ames_train,aes(x=Land.Slope,y=log(price),col=PID==902207130))+geom_point()
+p2<-ggplot(ames_train,aes(x=Year.Built,y=log(price),col=PID==902207130))+geom_point()
+p3<-ggplot(ames_train,aes(x=Year.Remod.Add,y=log(price),col=PID==902207130))+geom_point()
+p4<-ggplot(ames_train,aes(x=Bedroom.AbvGr,y=log(price),col=PID==902207130))+geom_point()
+ 
+
+
+ggplot2.multiplot(p0,p1,p2,p3,p4, cols=2)
+```
+
+Indeed, the house seems to be have been a bargain given the outlying position for all the predictors. 
+*(Maybe a real estate mogul from NYC used his very good brain to make a tremendous deal, who knows ?)*
 
 * * *
 
-NOTE: Write your written response to Question 5 here.  Delete this note before you submit your work.
 
 
 * * *
@@ -124,7 +171,16 @@ Use the same model selection method you chose in Question 4 to again find the be
 ```{r Q6}
 # type your code for Question 6 here, and Knit
 
+lm2<-lm(log(price)~log(Lot.Area)+Land.Slope+Year.Built+Year.Remod.Add+Bedroom.AbvGr,data=ames_train)
+
+# fit with step AIC
+best_model2<-stepAIC(lm2,trace=F,k = log(nrow(ames_train)))
+summary(best_model2)
+
 ```
+Well, this time the slope has disappeared from the model. and all predictors are well beyond the significant threshold.
+The adjusted R2 did improve and reaches 0.6015.
+
 
 * * *
 
@@ -132,15 +188,29 @@ Use the same model selection method you chose in Question 4 to again find the be
 
 Do you think it is better to log transform Lot.Area, in terms of assumptions for linear regression? Make graphs of the predicted values of log home price versus the true values of log home price for the regression models selected for Lot.Area and log(Lot.Area). Referencing these two plots, provide a written support that includes a quantitative justification for your answer in the first part of question 7.
 
+
+
 ```{r Q7}
 # type your code for Question 7 here, and Knit
+# add the  predictions to ames_train
 
+ames_train$prediction1<-exp(predict(best_model1,ames_train))
+ames_train$prediction2<-exp(predict(best_model2,ames_train))
+
+
+p0<-ggplot(ames_train,aes(x=log(prediction1),y=log(price)))+ geom_point(col='#4abf6d') +ggtitle('Using the Lot.Area as predictor')+geom_smooth(method = 'lm')
+p1<-ggplot(ames_train,aes(x=log(prediction2),y=log(price)))+ geom_point(col='#008b8b')+ggtitle('Using the log(Lot.Area) as predictor')+geom_smooth(method = 'lm')
+
+ggplot2.multiplot(p0,p1)
 ```
+
+
 
 * * *
 
-NOTE: Write your written response to Question 7 here.  Delete this note before you submit your work.
+With the second model using the Log of Lot.Area, the model explains 60% of the variance of the log(price) vs 56% for the first model.
+We can graphically see it on the chars above.
 
-
+Indeed, the second is better spread along a line, reducing the overall RMSE.
 * * *
 ###

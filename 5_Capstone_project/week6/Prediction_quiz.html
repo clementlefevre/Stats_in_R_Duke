@@ -172,7 +172,7 @@ model.full &lt;-<span class="st"> </span><span class="kw">lm</span>(<span class=
                  <span class="dt">data =</span> ames_train)
 
 <span class="co"># Model selection using AIC</span>
-model.AIC &lt;-<span class="st"> </span><span class="kw">stepAIC</span>(model.full, <span class="dt">k =</span> <span class="dv">2</span>)</code></pre></div>
+model.AIC &lt;-<span class="st"> </span><span class="kw">stepAIC</span>(model.full, <span class="dt">k =</span> <span class="dv">2</span>,<span class="dt">trace =</span> F)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="st">&quot;ames_test.Rdata&quot;</span>)</code></pre></div>
 <ol style="list-style-type: decimal">
 <li>Use the <code>predict</code> function in R to predict log(<code>price</code>) in the testing data set (<code>ames_test</code>). Under <code>model.AIC</code>, what is the mean predicted price in the testing data set?
@@ -188,7 +188,10 @@ $172,994.50
 $177,220.30
 </ol></li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 1 here, and Knit</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 1 here, and Knit</span>
+prediction1&lt;-<span class="kw">predict</span>(model.AIC,<span class="dt">newdata =</span> ames_test)
+<span class="kw">mean</span>(<span class="kw">exp</span>(prediction1))</code></pre></div>
+<pre><code>## [1] 177220.3</code></pre>
 <p></p>
 <p>One metric for comparing out-of-sample performance for multiple models is called root mean squared error (RMSE). Within the context of linear modeling, this involves taking the square root of the mean of the squared residuals. For example, assuming the dependent variable of interest is <code>price</code>, the RMSE for <code>model.full</code> is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Extract Predictions</span>
@@ -215,7 +218,29 @@ The RMSE for <code>model.full</code> is higher than the RMSE for <code>model.AIC
 The RMSE for <code>model.AIC</code> is higher than the RMSE for <code>model.full</code>, regardless of whether <code>ames_train</code> or <code>ames_test</code> is used for prediction.
 </ol></li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 2 here, and Knit</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 2 here, and Knit</span>
+RMSE_compute&lt;-<span class="st"> </span>function(df,model){
+  <span class="co"># Extract Predictions</span>
+prediction &lt;-<span class="st"> </span><span class="kw">exp</span>(<span class="kw">predict</span>(model, df))
+
+<span class="co"># Extract Residuals</span>
+resid &lt;-<span class="st"> </span>df$price -<span class="st"> </span>prediction
+
+<span class="co"># Calculate RMSE</span>
+rmse &lt;-<span class="st"> </span><span class="kw">sqrt</span>(<span class="kw">mean</span>(resid^<span class="dv">2</span>))
+<span class="kw">return</span>(rmse)
+ 
+}
+<span class="kw">RMSE_compute</span>(<span class="dt">df =</span> ames_train,<span class="dt">model =</span> model.full)</code></pre></div>
+<pre><code>## [1] 22706.55</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">RMSE_compute</span>(<span class="dt">df =</span> ames_train,<span class="dt">model =</span> model.AIC)</code></pre></div>
+<pre><code>## [1] 22823.41</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">RMSE_compute</span>(<span class="dt">df =</span> ames_test,<span class="dt">model =</span> model.full)</code></pre></div>
+<pre><code>## [1] 24197.34</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">RMSE_compute</span>(<span class="dt">df =</span> ames_test,<span class="dt">model =</span> model.AIC)</code></pre></div>
+<pre><code>## [1] 24188.71</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(<span class="st">'When predicting to ames_train, the RMSE for model.AIC is higher than the RMSE for model.full. However, when predicting to ames_test, the RMSE for model.full is higher.'</span>)</code></pre></div>
+<pre><code>## [1] &quot;When predicting to ames_train, the RMSE for model.AIC is higher than the RMSE for model.full. However, when predicting to ames_test, the RMSE for model.full is higher.&quot;</code></pre>
 <p></p>
 <ol start="3" style="list-style-type: decimal">
 <li>True or False: In general, the RMSE for predictions on a training data set will be higher than that for predictions on a testing data set.
@@ -250,7 +275,18 @@ coverage.prob.full</code></pre></div>
 0.961
 </ol></li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 4 here, and Knit</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 4 here, and Knit</span>
+
+model.BIC&lt;-<span class="kw">stepAIC</span>(model.full, <span class="dt">k =</span> <span class="kw">log</span>(<span class="kw">nrow</span>(ames_train)),<span class="dt">trace=</span>F)
+
+<span class="co"># Predict prices</span>
+predict.full &lt;-<span class="st"> </span><span class="kw">exp</span>(<span class="kw">predict</span>(model.BIC, ames_test, <span class="dt">interval =</span> <span class="st">&quot;prediction&quot;</span>))
+
+<span class="co"># Calculate proportion of observations that fall within prediction intervals</span>
+coverage.prob.full &lt;-<span class="st"> </span><span class="kw">mean</span>(ames_test$price &gt;<span class="st"> </span>predict.full[,<span class="st">&quot;lwr&quot;</span>] &amp;
+<span class="st">                            </span>ames_test$price &lt;<span class="st"> </span>predict.full[,<span class="st">&quot;upr&quot;</span>])
+coverage.prob.full</code></pre></div>
+<pre><code>## [1] 0.9498164</code></pre>
 <p></p>
 <p>In Course 4, we introduced Bayesian model averaging (BMA), which involves averaging over many possible models. This can be implemented in the <code>BAS</code> R package. So far, we have focused on performing model selection using BMA. However, BMA can also be used for prediction, averaging predictions from multiple models according to their posterior probabilities. The next few questions will give you some practice using <code>BAS</code> for prediction.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(BAS)
@@ -268,6 +304,14 @@ model.bas &lt;-<span class="st"> </span><span class="kw">bas.lm</span>(<span cla
 pred.HPM.rmse &lt;-<span class="st"> </span><span class="kw">sqrt</span>(<span class="kw">mean</span>((<span class="kw">exp</span>(pred.test.HPM$fit) -<span class="st"> </span>ames_test$price)^<span class="dv">2</span>))
 pred.HPM.rmse</code></pre></div>
 <pre><code>## [1] 24188.71</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pred.test.BPM &lt;-<span class="st"> </span><span class="kw">predict</span>(model.bas, <span class="dt">newdata =</span> ames_test, <span class="dt">estimator=</span><span class="st">&quot;BPM&quot;</span>)
+pred.BPM.rmse &lt;-<span class="st"> </span><span class="kw">sqrt</span>(<span class="kw">mean</span>((<span class="kw">exp</span>(pred.test.BPM$fit) -<span class="st"> </span>ames_test$price)^<span class="dv">2</span>))
+pred.BPM.rmse</code></pre></div>
+<pre><code>## [1] 24189.98</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pred.test.BMA &lt;-<span class="st"> </span><span class="kw">predict</span>(model.bas, <span class="dt">newdata =</span> ames_test, <span class="dt">estimator=</span><span class="st">&quot;BMA&quot;</span>)
+pred.BMA.rmse &lt;-<span class="st"> </span><span class="kw">sqrt</span>(<span class="kw">mean</span>((<span class="kw">exp</span>(pred.test.BMA$fit) -<span class="st"> </span>ames_test$price)^<span class="dv">2</span>))
+pred.BMA.rmse</code></pre></div>
+<pre><code>## [1] 24217.35</code></pre>
 <ol start="5" style="list-style-type: decimal">
 <li>Which of the following prediction methods has the smallest out-of-sample RMSE?
 <ol>
@@ -279,7 +323,24 @@ BPM
 BMA
 </ol></li>
 </ol>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 5 here, and Knit</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># type your code for Question 5 here, and Knit</span>
+
+pred.test.MPM &lt;-<span class="st"> </span><span class="kw">predict</span>(model.bas, ames_test, 
+                    <span class="dt">estimator=</span><span class="st">&quot;MPM&quot;</span>, 
+                    <span class="dt">prediction=</span><span class="ot">TRUE</span>, <span class="dt">se.fit=</span><span class="ot">TRUE</span>)
+
+<span class="co"># Get dataset of predictions and confidence intervals</span>
+out =<span class="st"> </span><span class="kw">as.data.frame</span>(<span class="kw">cbind</span>(<span class="kw">exp</span>(<span class="kw">confint</span>(pred.test.MPM)),
+                          <span class="dt">price =</span> ames_test$price))
+
+<span class="co"># Fix names in dataset</span>
+<span class="kw">colnames</span>(out)[<span class="dv">1</span>:<span class="dv">2</span>] &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;lwr&quot;</span>, <span class="st">&quot;upr&quot;</span>)  <span class="co">#fix names</span>
+
+<span class="co"># Get Coverage</span>
+pred.test.MPM.coverage &lt;-<span class="st"> </span>out %&gt;%<span class="st"> </span><span class="kw">summarize</span>(<span class="dt">cover =</span> <span class="kw">sum</span>(price &gt;=<span class="st"> </span>lwr &amp;<span class="st"> </span>price &lt;=<span class="st"> </span>upr)/<span class="kw">n</span>())
+<span class="dv">1</span>-pred.test.MPM.coverage</code></pre></div>
+<pre><code>##        cover
+## 1 0.04895961</code></pre>
 <p></p>
 <p>To obtain out-of-sample prediction intervals and coverage for the highest probability model, we can execute the following command:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pred.test.HPM &lt;-<span class="st"> </span><span class="kw">predict</span>(model.bas, ames_test, 

@@ -44,6 +44,7 @@ model.full <- lm(log(price) ~ Overall.Qual + log(Garage.Area + 1) +
 
 # Model selection using AIC
 model.AIC <- stepAIC(model.full, k = 2,trace = F)
+summary(model.AIC)
 ```
 
 ```{r loadtest}
