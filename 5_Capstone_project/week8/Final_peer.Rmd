@@ -33,7 +33,7 @@ library(ggcorrplot)
 library(easyGgplot2)
 library(gridExtra)
 library(BAS)
-library(MASS)
+
 ```
 
 ## Part 1 - Exploratory Data Analysis (EDA)
@@ -107,7 +107,8 @@ categorical_features<- as.vector(categorical_features$key)
 
 Compute the skeweness and select the most skewed :
 ```{r}
-df_skew<-ames_train %>% select(one_of(integer_features))%>% select(-one_of(high.na.features)) %>% summarise_each(funs(skewness=skewness)) %>% gather()%>% arrange(desc(abs(value))) %>% top_n(20)
+
+df_skew <-ames_train %>% select(one_of(integer_features)) %>% select(-one_of(high.na.features)) %>%summarise_each(funs(skewness=skewness)) %>% gather()%>% arrange(desc(abs(value))) %>% top_n(20)
 
 df_skew
 high_skewed_features<- as.vector(df_skew$key)
@@ -290,10 +291,14 @@ I have to confess it is more guts feeling rather than rigourous metrics that dri
 
 ```{r fit_model}
 
-model1<-lm(price~Overall.Qual+Exter.Qual+area+Lot.Area+Year.Built+TotRms.AbvGrd+X1st.Flr.SF+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
+model1<-lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+log(TotRms.AbvGrd)+log(X1st.Flr.SF)+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
 summary(model1)
 ```
-We resulting model score quite well with an adjusted $\R^2 = 0.8612$. What is means ? It means the model manages to explains  84% of the overall variance, keeping in mind that a$\R^2 =1$ would result in explaining fully this variance.
+We resulting model score quite well with an adjusted $R^2=0.87$. 
+
+What does it mean ?
+
+It means the model we trained managed to explain  87% of the overall variance, keeping in mind that a$R^2 =1$ would result in explaining fully this variance.
 The five first predictors having a positive coefficient, each increase of their value with push the house price higher.
 To be underlined that for external Quality, only the Excellent category does push the price, otherwise it does lower it.
 
@@ -314,8 +319,8 @@ Now it's time to use the *step* method ! We first use the **AIC** (Aikike Inform
 
 ```{r model_select}
 
-model.AIC<-stepAIC(model1,k=2,trace=F)
-model.BIC<-stepAIC(model1,k=log(nrow(ames_train)),trace=F)
+model.AIC<-step(model1,k=2,trace=F)
+model.BIC<-step(model1,k=log(nrow(ames_train)),trace=F)
 
 summary(model.AIC)
 summary(model.BIC)
@@ -329,10 +334,20 @@ One way to assess the performance of a model is to examine the model's residuals
 
 * * *
 
-NOTE: Write your written response to section 2.3 here. Delete this note before you submit your work.
+I use the BIC model (less predictors, slightly lower $\rho$) to plot the residuals :
 
 ```{r model_resid}
+ggplot(model.BIC,aes(x=exp(.fitted),y=.resid))+geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')
 ```
+
+What we observe :
+
+- the overall distribution is uniform.
+- Remember the **Very good Deal**$^{MAGA}$  ? The outlier from Week 4 is still here ! 
+- for low price **<150K**, the model tends to **under-estimate** the price.
+- **between 150K and 250K** : the opposite occurs : price are **over-evaluated** by the model.
+- beyond 250K : under-evaluation.
+- past 300K the model can hardly provide reasonable estimate of the price.
 
 * * *
 
