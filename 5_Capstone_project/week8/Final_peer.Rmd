@@ -64,11 +64,24 @@ high.na.features
 Ok, we can drop `Pool.QC`, `Misc.Feature`, `Alley`, `Fence` as they not provide enough info for the overall dataset.
 
 Let's see which variables are not well balanced.
+
 To proceed, we compute the skeweness for each numeric variable and select the top 20 most skewed :
+
+
+Select the numeric features only :
+
+```{r}
+integer_features <- summarise_each(ames_train,funs(is.integer)) %>%gather()%>% filter(value==T & key!="price")
+integer_features<- as.vector(integer_features$key)
+
+categorical_features <- summarise_each(ames_train,funs(is.factor)) %>%gather()%>% filter(value==T )
+categorical_features<- as.vector(categorical_features$key)
+```
 
 ```{r}
 
-df_skew<-ames_train %>% select(-price,Pool.QC, Misc.Feature, Alley, Fence) %>% summarise_each(funs(skewness=skewness)) %>% gather()%>% arrange(desc(abs(value))) %>% top_n(20)
+# filter on numeric features :
+df_skew<-ames_train %>% select(one_of(integer_features))%>% select(-one_of(high.na.features)) %>% summarise_each(funs(skewness=skewness)) %>% gather()%>% arrange(desc(abs(value))) %>% top_n(20)
 
 df_skew
 high_skewed_features<- as.vector(df_skew$key)
@@ -82,10 +95,10 @@ df_skewed_features_log<- ames_train %>% select_(.dots=high_skewed_features) %>% 
 head(df_skewed_features_log)
 ```
 
-And finaly weplot those logs values and see whether the variable distribution remains skewed :
+And finaly we plot those logs values distributions and see whether the variable distribution remains skewed :
 
 ```{r}
-plot.vector<-vector(length=10)
+
 plot_data_column = function (data, column){
       p<-ggplot(data = data, aes_string(x = column)) +
         geom_histogram(fill = "lightgreen",binwidth = .1) +
@@ -101,11 +114,55 @@ do.call("grid.arrange", c(myplots, ncol=nCol))
 
 ```
 
-W could plot a correlogramm of all variables :
+It seems that the following features,the logarithmic transformation  did imporove :
+
+- Lot.Area
+- area
+- X1st.Flr.SF
+- TotRms.AbvGrd
+
+For the other, we can exclude them for the scope.
+
+```{r}
+bad_balances_features<- high_skewed_features[! high_skewed_features %in% c("Lot.Area","area","X1st.Flr.SF","TotRms.AbvGrd")]
+bad_balances_features
+```
+
+As a measure of skeweness is not valid for categorical variables, we can plot their distribution directly :
+```{r}
+
+plot_data_column = function (data, column){
+      p<-ggplot(data = data, aes_string(x = column)) +
+        geom_bar(fill = "lightblue",stat="count") +
+        theme(
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+        theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())+
+        ylab("")
+      
+}
+
+myplots <- lapply(categorical_features, plot_data_column, data = ames_train)
+
+myplots_split <-  split(myplots, 1:2)
+
+n <- length(myplots_split[[1]])
+nCol <- floor(sqrt(n))
+do.call("grid.arrange", c(myplots_split[[1]], ncol=nCol))
+
+n <- length(myplots_split[[2]])
+nCol <- floor(sqrt(n))
+do.call("grid.arrange", c(myplots_split[[2]], ncol=nCol))
+```
+
+
+We could plot a correlogramm of all variables :
 
 
 ```{r creategraphs}
-lm1<- lm(price~.,data=ames_train)
+
 
 ```
 
