@@ -33,6 +33,7 @@ library(ggcorrplot)
 library(easyGgplot2)
 library(gridExtra)
 library(BAS)
+library(MASS)
 ```
 
 ## Part 1 - Exploratory Data Analysis (EDA)
@@ -44,15 +45,36 @@ Do a detailed EDA of the ames_train data set, to learn about the structure of th
 After you have explored completely, submit the three graphs/plots that you found most informative during your EDA process, and briefly explain what you learned from each (why you found each informative).
 
 * * *
-Let's check the features :
+
+### Target profil
+
+How does the price distribution looks like ?
+
+```{r}
+ggplot(ames_train,aes(x=price))+ geom_histogram(bins=30,fill='cyan4')
+```
+It is **right skewed**, we might instead use the log value of price as target, to decrease the RMSE :
+
+```{r}
+ggplot(ames_train,aes(x=log(price)))+ geom_histogram(bins=30,fill='lightblue3')
+```
+Indeed, the skweness did disappear.
+
+
+
+### Features type
+Let's check first the quantity and quality of the features :
 
 ```{r}
 ncol(ames_train)
 summarise_each(ames_train,funs(class)) %>% gather() %>% group_by(value) %>% summarise(count= n())
 ```
 So we've got 80 potential predictors for the price variable, 43 *categorical* and 37 *continuous*.
+It is a lot of features, we should reduce this figure.
 
-How many are not informative (ie high NA ratio) ?
+### Missing data 
+
+How many of those features are not really informative (ie high NA ratio) ?
 For this i compute  the NA ratio per features and filter on a >50% threshold :
 
 ```{r}
@@ -61,12 +83,17 @@ df.high_na
 high.na.features<- as.vector(df.high_na$Variable)
 high.na.features
 ```
-Ok, we can drop `Pool.QC`, `Misc.Feature`, `Alley`, `Fence` as they not provide enough info for the overall dataset.
+Hence we can drop `Pool.QC`, `Misc.Feature`, `Alley`, `Fence` as they not provide enough info for the overall dataset.
+
+
+### Variables balance
+
 
 Let's see which variables are not well balanced.
 
-To proceed, we compute the skeweness for each numeric variable and select the top 20 most skewed :
+#### For continous variables
 
+To proceed, we compute the skeweness for each coninous variable and select the **top 20 most skewed** :
 
 Select the numeric features only :
 
@@ -78,24 +105,21 @@ categorical_features <- summarise_each(ames_train,funs(is.factor)) %>%gather()%>
 categorical_features<- as.vector(categorical_features$key)
 ```
 
+Compute the skeweness and select the most skewed :
 ```{r}
-
-# filter on numeric features :
 df_skew<-ames_train %>% select(one_of(integer_features))%>% select(-one_of(high.na.features)) %>% summarise_each(funs(skewness=skewness)) %>% gather()%>% arrange(desc(abs(value))) %>% top_n(20)
 
 df_skew
 high_skewed_features<- as.vector(df_skew$key)
 high_skewed_features<- vapply(strsplit(high_skewed_features,"_"), `[`, 1, FUN.VALUE=character(1))
-
 ```
 
 We can now apply a logarithm transformation on the most skewed  continuous features :
 ```{r}
 df_skewed_features_log<- ames_train %>% select_(.dots=high_skewed_features) %>%  mutate_each(funs(log(1+.)))
-head(df_skewed_features_log)
 ```
 
-And finaly we plot those logs values distributions and see whether the variable distribution remains skewed :
+And finaly we plot those **logs values distributions** and see whether the variable distribution remains skewed :
 
 ```{r}
 
@@ -114,19 +138,21 @@ do.call("grid.arrange", c(myplots, ncol=nCol))
 
 ```
 
-It seems that the following features,the logarithmic transformation  did imporove :
+For the following features,the logarithmic transformation did improve the distribution :
 
-- Lot.Area
-- area
-- X1st.Flr.SF
-- TotRms.AbvGrd
+- `Lot.Area`
+- `area`
+- `X1st.Flr.SF`
+- `TotRms.AbvGrd`
 
 For the other, we can exclude them for the scope.
 
 ```{r}
-bad_balances_features<- high_skewed_features[! high_skewed_features %in% c("Lot.Area","area","X1st.Flr.SF","TotRms.AbvGrd")]
-bad_balances_features
+bad.balances.continous.features<- high_skewed_features[! high_skewed_features %in% c("Lot.Area","area","X1st.Flr.SF","TotRms.AbvGrd")]
+bad.balances.continous.features
 ```
+
+#### For categorical variables
 
 As a measure of skeweness is not valid for categorical variables, we can plot their distribution directly :
 ```{r}
@@ -157,14 +183,82 @@ nCol <- floor(sqrt(n))
 do.call("grid.arrange", c(myplots_split[[2]], ncol=nCol))
 ```
 
+From the resulting distributions, we can exclude :
+Alley,Land.Contour,Condition.2,Roof.Matl,Bsmt.Cond,Heating,Central.Air,Garage.Cond,Street,Land.Slope,Functional.
 
-We could plot a correlogramm of all variables :
-
-
-```{r creategraphs}
-
+```{r}
+bad.balances.discrete.features<- c("Utilities","Alley","Land.Contour","Condition.2","Roof.Matl","Bsmt.Cond","Heating","Central.Air","Garage.Cond","Street","Land.Slope","Functional")
 
 ```
+
+### Correlations
+
+New that the features list got smaller, we compute the correlation for the remaining variables :
+
+```{r}
+features.to.exclude<- c(high.na.features, bad.balances.continous.features,bad.balances.discrete.features)
+feature.of.interest<- colnames(ames_train)[!colnames(ames_train) %in% features.to.exclude]
+```
+
+```{r}
+ames_train_selected_features <- ames_train %>% select(one_of(c('price',feature.of.interest))) %>% mutate_if(is.factor,as.numeric) %>% na.omit()
+df.correlation<- as.data.frame(cor(ames_train_selected_features))
+df.correlation$feature_name<-rownames(df.correlation)
+
+#df.correlation[upper.tri(df.correlation)] <- NA
+
+df.highest.corr.features<- df.correlation %>% select(feature_name,price) %>% arrange(desc(price)) %>% filter(feature_name!="price") %>% filter(abs(price)>0.4) %>% arrange(desc(price))
+
+highest.corr.features<-as.vector(df.highest.corr.features$feature_name)
+highest.corr.features
+
+#df.correlation %>% mutate_each(funs(if_else(abs(.)<0.1,0,.)))
+```
+
+
+```{r}
+
+
+corr <- round(cor(ames_train_selected_features %>% select(one_of(c("price",highest.corr.features)))),1)
+
+# Plot
+ggcorrplot(corr, hc.order = TRUE, 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 2, 
+           method="square", 
+           colors = c("tomato2", "white", "springgreen3"), 
+           title="Correlogram of Selected Features", 
+           ggtheme=theme_bw)
+
+```
+We can clearly see that the features are almost all tightly correlated together, mean the problem of collinearity has to taken into account. 
+Here are some example :
+```{r}
+ggplot(ames_train,aes(area,log(Lot.Area)))+ geom_jitter(colour='cyan4')+ geom_smooth(method = 'lm')
+ggplot(ames_train,aes(Garage.Area,Garage.Cars))+ geom_jitter(colour='orange2')+ geom_smooth(method = 'lm')
+
+```
+
+
+Using a method such as *step*, or a Bayesian prior could save us the tedious task of cleaning the collinear variables.
+
+
+### Summary EDA
+
+Finally, the 3 graphs that summarise at best the relationships in the dataset :
+
+```{r creategraphs}
+ggplot(ames_train,aes(Overall.Qual,log(price)))+ geom_jitter(colour='cyan4')+ geom_smooth(method = 'lm')+ ggtitle('1 - Overall House Quality vs. log(Price)')
+
+ggplot(df.highest.corr.features,aes(x=reorder(feature_name, price,FUN = abs),y=price,fill=feature_name))+  geom_bar(stat="identity")+theme(legend.position="none",axis.text.x=element_text(angle=45, hjust=1),                                                                        axis.text.y=element_text(angle=45, hjust=1))  + ylab('Pearson correlation with price')  + ggtitle('2 - Highest correlation with price')                     
+
+ggplot(ames_train,aes(Exter.Qual,log(price)))+ geom_jitter(colour='cyan4')+ geom_smooth(method = 'lm')+ ggtitle('1 - Overall House Quality vs. log(Price)')+ ggtitle('3 - Example of bad features selection')
+
+```
+
+The last chart (**Exter.Qual vs log(price)**)reminds us how tricky the features selection is : although i did considere this feature as well balanced and it ranks as 2nd in term of correlation with price, we have to admit the **lack of linearity with log(price)**
+
 
 * * *
 
@@ -177,10 +271,36 @@ Based on your EDA, select *at most* 10 predictor variables from “ames_train”
 
 * * *
 
-NOTE: Write your written response to section 2.1 here. Delete this note before you submit your work.
+Given the resulf of the EDA, i would instinctively select the following features to make a simple but robust model :
+
+- `Overall.Qual` and `Exter.Qual` : the best $\rho$
+- `area` and `Lot.Area`: it seems obvious that price is related to the area.
+- `Year built` : *ibid.*
+- `Total Rooms above Ground`: *ibid.*
+- `X1st.Flr.SF` : *ibid.*
+- `Bsmt.Fin.Type.1` : one basement characteristics to widen the heterogeneity of the features.
+- `Exterior.1st` : *ibid.*
+- `Garage.Cars` : In the US, cars tends to influence the comsumer behaviour.
+- `Kitchen.Qual` : If for other countries such as mine (FR), it weights on the buying decision.
+- `Neighborhood` : from Week 4 assignement, this feature had an impact on the price. My EDA did not focused on this kind of categorical feature, but i'd like to give it a chance.
+
+I have to confess it is more guts feeling rather than rigourous metrics that drive this feature selection.
+
+
 
 ```{r fit_model}
+
+model1<-lm(price~Overall.Qual+Exter.Qual+area+Lot.Area+Year.Built+TotRms.AbvGrd+X1st.Flr.SF+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
+summary(model1)
 ```
+We resulting model score quite well with an adjusted $\R^2 = 0.8612$. What is means ? It means the model manages to explains  84% of the overall variance, keeping in mind that a$\R^2 =1$ would result in explaining fully this variance.
+The five first predictors having a positive coefficient, each increase of their value with push the house price higher.
+To be underlined that for external Quality, only the Excellent category does push the price, otherwise it does lower it.
+
+Regarding the p-value, that provide evidence of the real influence of the predictor on the price, they are all well below a reasonable significance level. 
+
+For the specific case of the neighborhood, only 4 upscale Neighborhoods reached a significant level.
+
 
 * * *
 
@@ -190,11 +310,18 @@ Now either using `BAS` another stepwise selection procedure choose the "best" mo
 
 * * *
 
-NOTE: Write your written response to section 2.2 here. Delete this note before you submit your work.
+Now it's time to use the *step* method ! We first use the **AIC** (Aikike Informatoin criterion), the **BIC** (Bayesian Information Criterion)
 
 ```{r model_select}
+
+model.AIC<-stepAIC(model1,k=2,trace=F)
+model.BIC<-stepAIC(model1,k=log(nrow(ames_train)),trace=F)
+
+summary(model.AIC)
+summary(model.BIC)
 ```
 
+Both model selection method did reach the same model : the TotRms.AbvGrd feature has been considere either not significant(AIC), or has been dropped (BIC). 
 * * *
 
 ### Section 2.3 Initial Model Residuals
