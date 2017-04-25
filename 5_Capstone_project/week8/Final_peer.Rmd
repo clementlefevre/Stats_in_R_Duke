@@ -53,12 +53,13 @@ How does the price distribution looks like ?
 ```{r}
 ggplot(ames_train,aes(x=price))+ geom_histogram(bins=30,fill='cyan4')
 ```
+
 It is **right skewed**, we might instead use the log value of price as target, to decrease the RMSE :
 
 ```{r}
 ggplot(ames_train,aes(x=log(price)))+ geom_histogram(bins=30,fill='lightblue3')
 ```
-Indeed, the skweness did disappear.
+Indeed, the skweness disappears.
 
 
 
@@ -233,6 +234,8 @@ ggcorrplot(corr, hc.order = TRUE,
            ggtheme=theme_bw)
 
 ```
+
+
 We can clearly see that the features are almost all tightly correlated together, mean the problem of collinearity has to taken into account. 
 Here are some example :
 ```{r}
@@ -277,13 +280,7 @@ Given the resulf of the EDA, i would instinctively select the following features
 - `Overall.Qual` and `Exter.Qual` : the best $\rho$
 - `area` and `Lot.Area`: it seems obvious that price is related to the area.
 - `Year built` : *ibid.*
-- `Total Rooms above Ground`: *ibid.*
-- `X1st.Flr.SF` : *ibid.*
-- `Bsmt.Fin.Type.1` : one basement characteristics to widen the heterogeneity of the features.
-- `Exterior.1st` : *ibid.*
-- `Garage.Cars` : In the US, cars tends to influence the comsumer behaviour.
-- `Kitchen.Qual` : If for other countries such as mine (FR), it weights on the buying decision.
-- `Neighborhood` : from Week 4 assignement, this feature had an impact on the price. My EDA did not focused on this kind of categorical feature, but i'd like to give it a chance.
+
 
 I have to confess it is more guts feeling rather than rigourous metrics that drive this feature selection.
 
@@ -291,14 +288,14 @@ I have to confess it is more guts feeling rather than rigourous metrics that dri
 
 ```{r fit_model}
 
-model1<-lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+log(TotRms.AbvGrd)+log(X1st.Flr.SF)+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
+model1<-lm(price~Overall.Qual+Exter.Qual+area+Year.Built,data=ames_train)
 summary(model1)
 ```
 We resulting model score quite well with an adjusted $R^2=0.87$. 
 
 What does it mean ?
 
-It means the model we trained managed to explain  87% of the overall variance, keeping in mind that a$R^2 =1$ would result in explaining fully this variance.
+It means the model we trained managed to explain  87% of the overall variance, keeping in mind that a $R^2 =1$ would result in explaining fully this variance.
 The five first predictors having a positive coefficient, each increase of their value with push the house price higher.
 To be underlined that for external Quality, only the Excellent category does push the price, otherwise it does lower it.
 
@@ -334,10 +331,10 @@ One way to assess the performance of a model is to examine the model's residuals
 
 * * *
 
-I use the BIC model (less predictors, slightly lower $\rho$) to plot the residuals :
+I use the BIC model (less predictors, slightly lower $R^2$) to plot the residuals :
 
 ```{r model_resid}
-ggplot(model.BIC,aes(x=exp(.fitted),y=.resid))+geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')
+ggplot(model.BIC,aes(x=.fitted,y=.resid))+geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Training set')
 ```
 
 What we observe :
@@ -357,12 +354,24 @@ You can calculate it directly based on the model output. Be specific about the u
 
 * * *
 
-NOTE: Write your written response to section 2.4 here. Delete this note before you submit your work.
 
+To compute the Root Mean Squared Error, i we use the standard formula :
+
+$RMSE = \sqrt{\frac{\sum_{i,n}(estimate_{i}-observed_{i})^2}{n}}$
+
+But as we are estimating the $log$ value :
+
+$RMSE = \sqrt{\frac{\sum_{i,n}(\exp^{estimate_{i}}-observed_{i})^2}{n}}$
 
 ```{r model_rmse}
+
+ames_train$prediction<-predict(model.BIC,ames_train)
+
+RMSE<-sqrt(mean((ames_train$prediction -ames_train$price)^2,na.rm=TRUE))
+RMSE
 ```
 
+This model result in a RMSE of **33441.82$**.
 * * *
 
 ### Section 2.5 Overfitting 
@@ -377,10 +386,22 @@ Use your model from above to generate predictions for the housing prices in the 
 
 * * *
 
-NOTE: Write your written response to section 2.5 here. Delete this note before you submit your work.
+
 
 ```{r initmodel_test}
+
+ames_test$prediction<-predict(model.BIC,newdata=ames_test)
+ames_test$resid<-ames_test$price-ames_test$prediction
+
+RMSE<-sqrt(mean((ames_test$resid)^2,na.rm=TRUE))
+RMSE
+
+
+ggplot(ames_test,aes(x=prediction,y=resid)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+
 ```
+The RMSE is **astoningshly lower**, which is **not was we would expect from a model**.
+my guess is there are less outliers than in the training set, or my RMSE calculation got wrong.
 
 * * *
 
@@ -398,10 +419,23 @@ Provide the summary table for your model.
 
 * * *
 
-NOTE: Write your written response to section 3.1 here. Delete this note before you submit your work.
+
+- `Overall.Qual` and `Exter.Qual` : the best $\rho$
+- `area` and `Lot.Area`: it seems obvious that price is related to the area.
+- `Year built` : *ibid.*
+- `Total Rooms above Ground`: *ibid.*
+- `X1st.Flr.SF` : *ibid.*
+- `Bsmt.Fin.Type.1` : one basement characteristics to widen the heterogeneity of the features.
+- `Exterior.1st` : *ibid.*
+- `Garage.Cars` : In the US, cars tends to influence the comsumer behaviour.
+- `Kitchen.Qual` : If for other countries such as mine (FR), it weights on the buying decision.
+- `Neighborhood` : from Week 4 assignement, this feature had an impact on the price. My EDA did not focused on this kind of categorical feature, but i'd like to give it a chance.
+
 
 
 ```{r model_playground}
+
+model2<-lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+log(TotRms.AbvGrd+1)+log(X1st.Flr.SF)+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
 ```
 
 * * *
@@ -412,7 +446,8 @@ Did you decide to transform any variables?  Why or why not? Explain in a few sen
 
 * * *
 
-NOTE: Write your written response to section 3.2 here. Delete this note before you submit your work.
+
+Some of the predictor will be use with **their log version**, as we get a better balanced distribution as seen in the EDA.
 
 ```{r model_assess}
 ```
