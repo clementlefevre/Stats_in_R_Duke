@@ -733,6 +733,6 @@ Provide a brief summary of your results, and a brief discussion of what you have
 
 * * *
 
-NOTE: Write your written response to part 5 here. Delete this note before you submit your work.
+
 
 * * *
