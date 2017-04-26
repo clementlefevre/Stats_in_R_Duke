@@ -749,5 +749,38 @@ I do remain doubtful on the content of the training set, which performs worst th
 Pity i **could not use the Bayesian model** to compute a prediction, which looked promising regarding the $R^2$ value.
 
 
+### Regression with PCA (PCR)
+
+```{r}
+
+library(mice)
+ames_train <-  ames_train%>% select(one_of(feature.of.interest))%>% mutate_if(is.factor,as.numeric)
+ames_test <-ames_test %>% select(one_of(feature.of.interest))%>% mutate_if(is.factor,as.numeric)
+
+ames_train <- mice::complete(mice(ames_train,m=1, maxit=500, method='cart', seed=500))
+ames_test <- mice::complete(mice(ames_test, m=1, maxit=500, method='cart', seed=500))
+
+pcr_model <- pcr(price~., data = ames_train, scale = TRUE, validation = "CV")
+summary(pcr_model)
+
+# Plot the root mean squared error
+validationplot(pcr_model)
+
+
+# Plot the R2
+validationplot(pcr_model, val.type = "R2")
+
+
+```
+
+```{r}
+ames_test$pcr_pred <- predict(pcr_model, ames_test , ncomp = 20)
+
+ames_test$resid_pcr<-(pcr_pred - ames_test$price)^2
+sqrt(sum(mean(ames_test$resid_pcr,na.rm=T)))
+ggplot(ames_test, aes(x=pcr_pred,y=resid_pcr)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+
+```
+
 
 * * *
