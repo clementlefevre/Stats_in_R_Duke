@@ -241,6 +241,8 @@ ggplot(ames_train,aes(log(Mas.Vnr.Area+1),price))+ geom_jitter(colour='cyan4')+ 
 ```
 
 Indeed, those feature are worth trying in the model, but beware of the **multicollinearity.**
+
+
 ### Correlations
 
 New that the features list got smaller, we compute the correlation for the remaining variables :
@@ -289,16 +291,15 @@ We can clearly see that the features are almost all tightly correlated together,
 Using a method such as *step*, or a Bayesian prior could save us the tedious task of cleaning the collinear variables.
 
 
-### New features
+### New features : confort
 
-On interesting festures might be the buildt surface vs total surface ratio :
+On interesting festures might be a measurement of the comfort :
+**the (Kitchens + BathRooms) vs total Room Rooms ratio ponderated by the surface.**
 
 ```{r}
-ames_train$Built.Ratio<- (ames_train$Kitchen.AbvGr+ames_train$Full.Bath)*ames_train$X2nd.Flr.SF/ ames_train$Bedroom.AbvGr
+ames_train$Built.Ratio<- (ames_train$Kitchen.AbvGr+ames_train$Full.Bath)*(ames_train$X2nd.Flr.SF)^2/ ames_train$Bedroom.AbvGr
+ggplot(ames_train,aes(Built.Ratio,price))+ geom_jitter(colour='cyan4')+ geom_smooth(method = 'lm')
 
-
-ggplot(ames_train,aes((Built.Ratio),price))+ geom_jitter(colour='orange2')+ geom_smooth(method = 'lm')
-cor(as.numeric(ames_train$Built.Ratio),ames_train$price)
 ```
 
 
@@ -337,26 +338,21 @@ Given the resulf of the EDA, i would instinctively select the following features
 - `Year built` : *ibid.*
 
 
-I have to confess it is more guts feeling rather than rigourous metrics that drive this feature selection.
-
-
-
 ```{r fit_model}
 
-model1<-lm(price~Overall.Qual+Exter.Qual+area+Year.Built+Mas.Vnr.Area+Built.Ratio,data=ames_train)
+model1<-lm(price~Overall.Qual+area+Year.Built,data=ames_train)
 summary(model1)
 ```
-We resulting model score quite well with an adjusted $R^2=0.87$. 
+We resulting model score quite well with an adjusted $R^2=0.7456$. 
 
 What does it mean ?
 
-It means the model we trained managed to explain  87% of the overall variance, keeping in mind that a $R^2 =1$ would result in explaining fully this variance.
-The five first predictors having a positive coefficient, each increase of their value with push the house price higher.
-To be underlined that for external Quality, only the Excellent category does push the price, otherwise it does lower it.
+It means the model we trained managed to explain  74% of the overall variance, keeping in mind that a $R^2 =1$ would result in explaining fully this variance.
+
+The three predictors having a positive coefficient, each increase of their value with push the house price higher.
 
 Regarding the p-value, that provide evidence of the real influence of the predictor on the price, they are all well below a reasonable significance level. 
 
-For the specific case of the neighborhood, only 4 upscale Neighborhoods reached a significant level.
 
 
 * * *
@@ -367,7 +363,7 @@ Now either using `BAS` another stepwise selection procedure choose the "best" mo
 
 * * *
 
-Now it's time to use the *step* method ! We first use the **AIC** (Aikike Informatoin criterion), the **BIC** (Bayesian Information Criterion)
+Now it's time to use the *step* method ! We first use the **AIC** (Aikike Informatoin criterion), then the **BIC** (Bayesian Information Criterion)
 
 ```{r model_select}
 
@@ -378,7 +374,7 @@ summary(model.AIC)
 summary(model.BIC)
 ```
 
-Both model selection method did reach the same model : the TotRms.AbvGrd feature has been considere either not significant(AIC), or has been dropped (BIC). 
+Due to the limited number of predictors (3), both model selection methods did reach the same model : no feature was considered worth excluding.
 * * *
 
 ### Section 2.3 Initial Model Residuals
@@ -394,8 +390,8 @@ ggplot(model.BIC,aes(x=.fitted,y=.resid))+geom_point(colour='cyan4',alpha=0.3)+ 
 
 What we observe :
 
-- the overall distribution is uniform.
-- Remember the **Very good Deal**$^{MAGA}$  ? The outlier from Week 4 is still here ! 
+- the overall distribution is **somehow** uniform.
+- Remember the **Very good Deal** ? The outlier from Week 4 is still here ! 
 - for low price **<150K**, the model tends to **under-estimate** the price.
 - **between 150K and 250K** : the opposite occurs : price are **over-evaluated** by the model.
 - beyond 250K : under-evaluation.
@@ -426,7 +422,9 @@ RMSE<-sqrt(mean((ames_train$prediction -ames_train$price)^2,na.rm=TRUE))
 RMSE
 ```
 
-This model result in a RMSE of **33441.82$**.
+This model result in a RMSE of **41232.49$**.
+
+
 * * *
 
 ### Section 2.5 Overfitting 
@@ -444,6 +442,7 @@ Use your model from above to generate predictions for the housing prices in the 
 
 
 ```{r initmodel_test}
+ames_test$Built.Ratio<- (ames_test$Kitchen.AbvGr+ames_test$Full.Bath)*ames_test$X2nd.Flr.SF/ ames_test$Bedroom.AbvGr
 
 ames_test$prediction<-predict(model.BIC,newdata=ames_test)
 ames_test$resid<-ames_test$price-ames_test$prediction
@@ -455,8 +454,9 @@ RMSE
 ggplot(ames_test,aes(x=prediction,y=resid)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
 
 ```
-The RMSE is **astoningshly lower**, which is **not was we would expect from a model**.
-my guess is there are less outliers than in the training set, or my RMSE calculation got wrong.
+
+The RMSE is **astonishly lower**, which is **not was we would expect from a model**.
+My guess is there are **less outliers than in the training set**, and the split between training and testing has not been randomly done.
 
 * * *
 
@@ -478,8 +478,7 @@ Provide the summary table for your model.
 - `Overall.Qual` and `Exter.Qual` : the best $\rho$
 - `area` and `Lot.Area`: it seems obvious that price is related to the area.
 - `Year built` : *ibid.*
-- `Total Rooms above Ground`: *ibid.*
-- `X1st.Flr.SF` : *ibid.*
+- `Built.Ratio` : A new features created during the EDA.
 - `Bsmt.Fin.Type.1` : one basement characteristics to widen the heterogeneity of the features.
 - `Exterior.1st` : *ibid.*
 - `Garage.Cars` : In the US, cars tends to influence the comsumer behaviour.
@@ -487,11 +486,104 @@ Provide the summary table for your model.
 - `Neighborhood` : from Week 4 assignement, this feature had an impact on the price. My EDA did not focused on this kind of categorical feature, but i'd like to give it a chance.
 
 
+Again, we bernchmark three different models selections techniques :
 
+- step with AIC,
+- step with BIC,
+- Bayesian based model selection with a Markov Chain Monte Carlo sampling method and a ZS-null prior.
+
+
+#### step with AIC
 ```{r model_playground}
 
-model2<-lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+log(TotRms.AbvGrd+1)+log(X1st.Flr.SF)+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
+model2<-lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+Built.Ratio+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train)
+
+best.model2.AIC<-step(model2,trace=F)
+summary(best.model2.AIC)
+
+
 ```
+
+#### Step with BIC
+```{r}
+
+best.model2.BIC<-step(model2,trace=F,k=log(nrow(ames_train)))
+summary(best.model2.BIC)
+
+
+```
+
+
+#### Bayesian method with bas package 
+```{r}
+# best.model2.BAS<- bas.lm(log(price)~Overall.Qual+Exter.Qual+log(area)+log(Lot.Area)+Year.Built+Built.Ratio+BsmtFin.Type.1+Exterior.1st+Garage.Cars+Kitchen.Qual+Neighborhood,data=ames_train, prior = "ZS-null",
+#                    modelprior = uniform(),
+#                    method = 'MCMC')
+# 
+# summary(best.model2.BAS)
+```
+
+
+#### Model evaluation on the testing set :
+
+Now we can compute the RMSE of the three models on the testing set :
+
+
+#### Step AIC :
+```{r}
+
+# There are new levels on the testing set for for Exterior.1st and Neighborhood, i add them in the model.
+best.model2.AIC$xlevels[["Exterior.1st"]] <- union(best.model2.AIC$xlevels[["Exterior.1st"]], levels(ames_test$Exterior.1st))
+best.model2.AIC$xlevels[["Neighborhood"]] <- union(best.model2.AIC$xlevels[["Neighborhood"]], levels(ames_test$Neighborhood))
+
+
+ames_test$prediction2.AIC<-exp(predict(best.model2.AIC,newdata=ames_test))
+ames_test$resid2.AIC<-ames_test$price-ames_test$prediction2.AIC
+
+RMSE<-sqrt(mean((ames_test$resid2.AIC)^2,na.rm=TRUE))
+RMSE
+
+
+ggplot(ames_test,aes(x=prediction2.AIC,y=resid2.AIC)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+
+```
+
+#### Step BIC :
+```{r}
+
+# No need to adjust the levels for Exterior.1st and Neighborhood, they are not part of the BIC model.
+ames_test$prediction2.BIC<-exp(predict(best.model2.BIC,newdata=ames_test))
+ames_test$resid2.BIC<-ames_test$price-ames_test$prediction2.BIC
+
+RMSE<-sqrt(mean((ames_test$resid2.BIC)^2,na.rm=TRUE))
+RMSE
+
+
+ggplot(ames_test,aes(x=prediction2.BIC,y=resid2.BIC)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+
+```
+
+#### Bayesian method :
+```{r}
+# There are new levels on the testing set for for Exterior.1st and Neighborhood, i had them in the model.
+# best.model2.BAS$xlevels[["Exterior.1st"]] <- union(best.model2.BAS$xlevels[["Exterior.1st"]], levels(ames_test$Exterior.1st))
+#   best.model2.BAS$xlevels[["Neighborhood"]] <- union(best.model2.BAS$xlevels[["Neighborhood"]], levels(ames_test$Neighborhood))
+# 
+# test_BAS<- copy(best.model2.BAS)
+# 
+# ames_test$prediction2.BAS<-exp(predict.bas(best.model2.BAS,newdata=ames_test, estimator="HPM"))
+# ames_test$resid2.BAS<-ames_test$price-ames_test$prediction2.BAS
+# 
+# RMSE<-sqrt(mean((ames_test$resid2.BAS)^2,na.rm=TRUE))
+# RMSE
+# 
+# 
+# ggplot(ames_test,aes(x=prediction2.BAS,y=resid2.BAS)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+
+```
+
+Well, i could not make the BAS predict work on the testing set, due to new factors introduced in the testing set.
+R, BAS are up to date. I posted it on the forum Week8.
 
 * * *
 
@@ -515,7 +607,7 @@ Did you decide to include any variable interactions? Why or why not? Explain in 
 
 * * *
 
-NOTE: Write your written response to section 3.3 here. Delete this note before you submit your work.
+I used the `Built.Ratio` which is a combination of quantitative features, as described in the EDA.
 
 ```{r model_inter}
 ```
@@ -528,7 +620,8 @@ What method did you use to select the variables you included? Why did you select
 
 * * *
 
-NOTE: Write your written response to section 3.4 here. Delete this note before you submit your work.
+After a benchmark on three methods describe above, i decided to use the step BIC approach, which is a trade-off between a good $R^2=0.86$ and low Degrees of Freedom (20).
+
 
 ```{r model_select}
 ```
@@ -541,7 +634,7 @@ How did testing the model on out-of-sample data affect whether or how you change
 
 * * *
 
-NOTE: Write your written response to section 3.5 here. Delete this note before you submit your work.
+On the testing set, the Step BIC performed much better than the step AIC in term of RMSE.
 
 ```{r model_testing}
 ```
@@ -556,7 +649,12 @@ For your final model, create and briefly interpret an informative plot of the re
 
 * * *
 
-NOTE: Write your written response to section 4.1 here. Delete this note before you submit your work.
+```{r}
+ggplot(ames_test,aes(x=prediction2.BIC,y=resid2.BIC)) +geom_point(colour='cyan4',alpha=0.3)+ geom_smooth(method='loess')+ggtitle('prediction vs residual for Test set')
+```
+
+The residuals vs fitted values is not really uniform, that means the model is not optimal.
+
 
 * * *
 
@@ -566,7 +664,19 @@ For your final model, calculate and briefly comment on the RMSE.
 
 * * *
 
-NOTE: Write your written response to section 4.2 here. Delete this note before you submit your work.
+
+```{r}
+
+ames_train$prediction2.BIC<-exp(predict(best.model2.BIC,ames_train))
+
+RMSE.train<-sqrt(mean((ames_train$prediction2.BIC -ames_train$price)^2,na.rm=TRUE))
+RMSE.train         
+RMSE.test<-sqrt(mean((ames_test$resid2.BIC)^2,na.rm=TRUE))
+RMSE
+```
+
+
+The RMSE on the testing set is still lower than the training set, which is suspicious. Was the split really random ?
 
 * * *
 
@@ -576,7 +686,10 @@ What are some strengths and weaknesses of your model?
 
 * * *
 
-NOTE: Write your written response to section 4.3 here. Delete this note before you submit your work.
+The model as not an uniform residual distribution, meaning the predictive power is not stable along the different prices.
+I would definitively remote the outliers from the training model. 
+Still, the model has a good R2 (0.85) with limited predictors (20).
+Pity i could not perform the Bayesian prediction using Neighborhoof and Exererior.1.
 
 * * *
 
@@ -596,9 +709,20 @@ load("ames_validation.Rdata")
 
 * * *
 
-NOTE: Write your written response to section 4.4 here. Delete this note before you submit your work.
+
 
 ```{r model_validate}
+# Add the new feature :
+ames_validation$Built.Ratio<- (ames_validation$Kitchen.AbvGr+ames_validation$Full.Bath)*(ames_validation$X2nd.Flr.SF)^2/ ames_validation$Bedroom.AbvGr
+
+ames_validation$prediction2.BIC<-exp(predict(best.model2.BIC,newdata=ames_validation))
+
+RMSE.validation<-sqrt(mean((ames_validation$prediction2.BIC -ames_validation$price)^2,na.rm=TRUE))
+RMSE.validation    
+
+predict.full <- exp(predict(best.model2.BIC, newdata=ames_validation, interval = "prediction", level = 0.95))
+coverage.prob.full <- mean(ames_validation$price > predict.full[,"lwr"] & ames_validation$price < predict.full[,"upr"],na.rm=T)
+coverage.prob.full
 ```
 
 * * *
