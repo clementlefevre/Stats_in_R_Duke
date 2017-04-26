@@ -725,6 +725,13 @@ coverage.prob.full <- mean(ames_validation$price > predict.full[,"lwr"] & ames_v
 coverage.prob.full
 ```
 
+The RMSE on the validation set using the best.model2.BIC is even lower than for the testing and training set.
+Again, the sampling on training set has not been properly randomized, with a high proportion of outliers.
+
+With 97% of the observed values fitting inside the 95% prediction confidence interval, the model does perform quite well.
+
+
+
 * * *
 
 ## Part 5 Conclusion
@@ -732,6 +739,14 @@ coverage.prob.full
 Provide a brief summary of your results, and a brief discussion of what you have learned about the data and your model. 
 
 * * *
+
+Features selection was an interesting challenge, with lots of correlated features.
+A **Principal Components Analysis** would have also been worth investigate, though we would have lose the ability to interpret the transformed predictors.
+
+
+I do remain doubtful on the content of the training set, which performs worst than both testing and validation set regarding the RMSE. **Eliminating the outliers** would have really improved the predictive power of the model.
+
+Pity i **could not use the Bayesian model** to compute a prediction, which looked promising regarding the $R^2$ value.
 
 
 
